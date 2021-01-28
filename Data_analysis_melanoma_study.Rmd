@@ -1,0 +1,17 @@
+---
+title: "Melanoma Study: miRNAs and other variables predicting therapy response"
+output:
+  html_notebook:
+    theme: united
+    toc: yes
+author: Marc Bender
+---
+
+<style>
+p.caption {
+  font-size: 0.8em;
+}
+body {
+text-align: justify}
+</style>
+

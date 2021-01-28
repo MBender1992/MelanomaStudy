@@ -24,6 +24,20 @@ dat <- load_melanoma_data() # n = 101 patients
 dat_table1 <- dat
 setDT(dat_table1)
 
+dat_table1$sex <- factor(dat$sex, levels = c("m", "w") , labels = c("Male", "Female"))
+
+dat$trt     <- factor(dat$trt, levels=1:2, labels=c("D-penicillamine", "Placebo"))
+dat$sex     <- factor(dat$sex, levels=c("m", "f"), labels=c("Male", "Female"))
+dat$stage   <- factor(dat$stage, levels=1:4, labels=paste("Stage", 1:4))
+dat$edema   <- factor(dat$edema, levels=c(0, 0.5, 1),
+                      labels=c("No edema",
+                               "Untreated or successfully treated",
+                               "Edema despite diuretic therapy"))
+dat$spiders <- as.logical(dat$spiders)
+dat$hepato  <- as.logical(dat$hepato)
+dat$ascites <- as.logical(dat$ascites)
+
+
 
 label(dat_table1$Alter)      <- "age (years)"
 label(dat_table1$BRAF)      <- "BRAF-status"
@@ -40,16 +54,7 @@ label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "received adjuvant IFN treatment"
 
 
-dat$trt     <- factor(dat$trt, levels=1:2, labels=c("D-penicillamine", "Placebo"))
-dat$sex     <- factor(dat$sex, levels=c("m", "f"), labels=c("Male", "Female"))
-dat$stage   <- factor(dat$stage, levels=1:4, labels=paste("Stage", 1:4))
-dat$edema   <- factor(dat$edema, levels=c(0, 0.5, 1),
-                      labels=c("No edema",
-                               "Untreated or successfully treated",
-                               "Edema despite diuretic therapy"))
-dat$spiders <- as.logical(dat$spiders)
-dat$hepato  <- as.logical(dat$hepato)
-dat$ascites <- as.logical(dat$ascites)
+
 
 
 

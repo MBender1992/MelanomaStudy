@@ -38,7 +38,7 @@ dat$hepato  <- as.logical(dat$hepato)
 dat$ascites <- as.logical(dat$ascites)
 
 
-
+# define labels for the table
 label(dat_table1$Alter)      <- "age (years)"
 label(dat_table1$BRAF)      <- "BRAF-status"
 label(dat_table1$Stadium)  <- "AJCC stage"

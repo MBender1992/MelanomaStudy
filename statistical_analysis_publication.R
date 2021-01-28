@@ -24,7 +24,7 @@ dat <- load_melanoma_data() # n = 101 patients
 dat_table1 <- dat
 setDT(dat_table1)
 
-dat_table1$sex <- factor(dat$sex, levels = c("m", "w") , labels = c("Male", "Female"))
+dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 
 dat$trt     <- factor(dat$trt, levels=1:2, labels=c("D-penicillamine", "Placebo"))
 dat$sex     <- factor(dat$sex, levels=c("m", "f"), labels=c("Male", "Female"))

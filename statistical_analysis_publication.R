@@ -1,20 +1,26 @@
-##Präambel
-setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/base_scripts")
+# <<<<<<<<<<<<< HEAD
 
-#loading custom functions
-source("R_functions_Melanoma.R")
+# load packages
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(devtools)
 
-library("tidyverse")
-library("ggpubr")
-library("rstatix")
+# source R functions
+source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
 
-# abcssd 
+#load data
+url_file <- "https://raw.githubusercontent.com/MBender1992/PhD/Marc/Data/200619_chronic_irr_normalized.csv" 
+dat <-  load_Fireplex_data_PhD(filename = url(url_file), threshold = 2.5)
 
+load_melanoma_data(characterAsFactor = TRUE) 
 # set working directory
 setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Projekte/Doktorarbeiten_Melanom_Liquid_Biopsies/Daten")
 
 # load data with custom function for melanoma data only for Responders
 dat_combined <- load_melanoma_data(characterAsFactor = TRUE) %>% filter(!is.na(Responder))
+
+test <- dat_combined
 
 # tidy miRNA data.....................................................................................................
 dat_miRNA_tidy <- dat_combined %>% 

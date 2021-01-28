@@ -46,7 +46,7 @@ ID,Responder,therapy_start,Abnahmedatum,Baseline,TRIM_PDL1_Expression,therapy_at
 45,NA,Nov 13,10.05.2016,nein,,Dabrafenib/Trametinib,0,23.0 mm,cutanes Melanom,abdomen,m,61,nein,,2,0.8,6.3,213,0.05
 46,nein,Mai 16,12.05.2016,ja,,Ipilimumab+Nivolumab,2,NA,cutanes Melanom,leg,m,36,nein,nein,1,2.7,1.3,188,0.78
 47,ja,Feb 16,12.05.2016,nein,,Pembrolizumab,0,4.0 mm,cutanes Melanom,back,m,42,ja,ja,2,5.2,10.4,157,0.03
-48,ja,Feb 14,12.05.2016,nein,,PD-1 bis 05/15 mit Vollremission,0,NA,cutanes Melanom,,Akte nicht da,,,,,1,1.2,195,0.03
+48,ja,Feb 14,12.05.2016,nein,,PD-1 bis 05/15 mit Vollremission,0,NA,cutanes Melanom,,,,,,,1,1.2,195,0.03
 49,ja,Sep 14,12.05.2016,nein,,Pembrolizumab,1,2.1 mm,cutanes Melanom,head,m,50,ja,ja,2,10,1,166,0.04
 50,ja,Nov 15,12.05.2016,nein,,Pembrolizumab,1,2.3 mm,cutanes Melanom,back,m,85,ja,nein,3,1.5,0.6,192,0.56
 51,nein,Jul 14,12.05.2016,nein,,Dabrafenib/Trametinib,0,3.2 mm,cutanes Melanom,leg,w,55,ja,,3,2.4,25.2,290,0.15

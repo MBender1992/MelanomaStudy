@@ -5,37 +5,71 @@ library(tidyverse)
 library(ggpubr)
 library(rstatix)
 library(devtools)
+library(data.table)
+library(table1)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
 
-#load data
-url_file <- "https://raw.githubusercontent.com/MBender1992/PhD/Marc/Data/200619_chronic_irr_normalized.csv" 
-dat <-  load_Fireplex_data_PhD(filename = url(url_file), threshold = 2.5)
-
-load_melanoma_data(characterAsFactor = TRUE) 
-# set working directory
-setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Projekte/Doktorarbeiten_Melanom_Liquid_Biopsies/Daten")
-
 # load data with custom function for melanoma data only for Responders
-dat_combined <- load_melanoma_data(characterAsFactor = TRUE) %>% filter(!is.na(Responder))
+dat <- load_melanoma_data() # n = 101 patients
 
-test <- dat_combined
+#####################################
+#                                   #
+#         1. patient table          #
+#                                   #
+#####################################
+
+# Tabelle 1
+dat_table1 <- dat
+setDT(dat_table1)
+
+
+label(dat_table1$Alter)      <- "age (years)"
+label(dat_table1$BRAF)      <- "BRAF-status"
+label(dat_table1$Stadium)  <- "AJCC stage"
+label(dat_table1$therapy_at_blood_draw) <- "therapy at blood draw"
+label(dat_table1$sex)  <- "sex"
+label(dat_table1$Responder)  <- "immunotherapy response"
+label(dat_table1$ECOG)      <- "ECOG"
+label(dat_table1$breslow_thickness_mm)      <- "breslow thickness (mm)"
+label(dat_table1$subtype) <- "subtype"
+label(dat_table1$localization) <- "localization"
+label(dat_table1$Hirnmetastase) <- "brain metastasis"
+label(dat_table1$miRExpAssess) <- "miRNA expression measured"
+label(dat_table1$adjuvant_IFN) <- "received adjuvant IFN treatment"
+
+
+dat$trt     <- factor(dat$trt, levels=1:2, labels=c("D-penicillamine", "Placebo"))
+dat$sex     <- factor(dat$sex, levels=c("m", "f"), labels=c("Male", "Female"))
+dat$stage   <- factor(dat$stage, levels=1:4, labels=paste("Stage", 1:4))
+dat$edema   <- factor(dat$edema, levels=c(0, 0.5, 1),
+                      labels=c("No edema",
+                               "Untreated or successfully treated",
+                               "Edema despite diuretic therapy"))
+dat$spiders <- as.logical(dat$spiders)
+dat$hepato  <- as.logical(dat$hepato)
+dat$ascites <- as.logical(dat$ascites)
+
+
+
 
 # tidy miRNA data.....................................................................................................
-dat_miRNA_tidy <- dat_combined %>% 
+dat_miRNA_tidy <- dat %>% 
   gather(miRNA, expression, contains("mir")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
   mutate(log_exp = log2(expression)) 
 
-dat_combined %>% select(contains("mir"))
 
-# tidy lab parameter data.............................................................................................
-dat_lab_pars_tidy <- dat_combined %>%
-  filter(!is.na(CRP) & !is.na(LDH)  &!is.na(S100)) %>%
-  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
-  gather(lab_parameter, value,-c(ID, Responder,Baseline)) %>%
-  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) 
+
+
+
+
+
+
+
+
+
 
 
 
@@ -50,6 +84,16 @@ png("miRNAs.png", units="in", width=7, height=7, res=1200)
 plot_miRNA$graph
 dev.off()
 
+
+
+
+
+# tidy lab parameter data.............................................................................................
+dat_lab_pars_tidy <- dat %>%
+  filter(!is.na(CRP) & !is.na(LDH)  &!is.na(S100)) %>%
+  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
+  gather(lab_parameter, value,-c(ID, Responder,Baseline)) %>%
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) 
 
 
 # Plot lab parameter data

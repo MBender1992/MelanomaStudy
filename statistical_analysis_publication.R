@@ -26,6 +26,8 @@ setDT(dat_table1)
 
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 
+
+
 dat$trt     <- factor(dat$trt, levels=1:2, labels=c("D-penicillamine", "Placebo"))
 dat$sex     <- factor(dat$sex, levels=c("m", "f"), labels=c("Male", "Female"))
 dat$stage   <- factor(dat$stage, levels=1:4, labels=paste("Stage", 1:4))

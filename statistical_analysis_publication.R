@@ -27,15 +27,12 @@ setDT(dat_table1)
 # define which factors to display in table
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja") , labels = c("no", "yes"))
-
 dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
-
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
 dat_table1$ECOG <- factor(dat_table1$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
-
+dat_table1$Stadium <- factor(dat_table1$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
 
 # define labels for the table
 label(dat_table1$Alter)      <- "Age (years)"
@@ -52,14 +49,17 @@ label(dat_table1$Hirnmetastase) <- "Brain metastasis"
 label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
 
+# function to display p-values  
 rndr <- function(x, name, ...) {
   if (length(x) == 0) {
-    y <- dat_table1[[name]]
+    y <- dat_table1[[name]] 
+    ind <- !is.na(y)
+    y <- y[ind]
     s <- rep("", length(render.default(x=y, name=name, ...)))
     if (is.numeric(y)) {
-      p <- t.test(y ~ dat_table1$Responder)$p.value
+      p <- t.test(y ~ dat_table1$Responder[ind])$p.value
     } else {
-      p <- chisq.test(table(y, droplevels(dat_table1$Responder)))$p.value
+      p <- chisq.test(table(y, droplevels(dat_table1$Responder[ind])))$p.value
     }
     s[2] <- sub("<", "&lt;", format.pval(p, digits=3, eps=0.001))
     s
@@ -73,10 +73,18 @@ rndr.strat <- function(label, n, ...) {
 }
 
 table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
-       data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, overall=F)
+       data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat)
 
 
-# 
+
+
+
+
+
+
+
+
+
 
 
 

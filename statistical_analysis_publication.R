@@ -1,35 +1,124 @@
-##Präambel
-setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/base_scripts")
+# <<<<<<<<<<<<< HEAD
 
-#loading custom functions
-source("R_functions_Melanoma.R")
+# load packages
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(devtools)
+library(data.table)
+library(table1)
 
-library("tidyverse")
-library("ggpubr")
-library("rstatix")
-
-# abcssd 
-
-# set working directory
-setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Projekte/Doktorarbeiten_Melanom_Liquid_Biopsies/Daten")
+# source R functions
+source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
 
 # load data with custom function for melanoma data only for Responders
-dat_combined <- load_melanoma_data(characterAsFactor = TRUE) %>% filter(!is.na(Responder))
+dat <- load_melanoma_data() # n = 101 patients
+
+#####################################
+#                                   #
+#         1. patient table          #
+#                                   #
+#####################################
+
+# define which factors to display in table
+dat$sex <- factor(dat$sex, levels = c("m", "w") , labels = c("Male", "Female"))
+dat$miRExpAssess <- factor(dat$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
+dat$Responder <- factor(dat$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
+dat$adjuvant_IFN <- factor(dat$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat$Hirnmetastase <- factor(dat$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat$subtype <- factor(dat$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
+dat$ECOG <- factor(dat$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
+dat$Stadium <- factor(dat$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
+
+# 
+dat_table1 <- dat
+setDT(dat_table1)
+
+# define labels for the table
+label(dat_table1$Alter)      <- "Age (years)"
+label(dat_table1$BRAF)      <- "BRAF-status"
+label(dat_table1$Stadium)  <- "AJCC stage" # add Stadium to source table
+label(dat_table1$therapy_at_blood_draw) <- "Therapy at blood draw"
+label(dat_table1$sex)  <- "Sex"
+label(dat_table1$Responder)  <- "Immunotherapy response"
+label(dat_table1$ECOG)      <- "ECOG"
+label(dat_table1$breslow_thickness_mm)      <- "Breslow thickness (mm)" # change to double
+label(dat_table1$subtype) <- "Subtype"
+label(dat_table1$localization) <- "Localization"
+label(dat_table1$Hirnmetastase) <- "Brain metastasis"
+label(dat_table1$miRExpAssess) <- "miRNA expression measured"
+label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
+
+# function to display p-values  
+rndr <- function(x, name, ...) {
+  if (length(x) == 0) {
+    y <- dat_table1[[name]] 
+    ind <- !is.na(y)
+    y <- y[ind]
+    s <- rep("", length(render.default(x=y, name=name, ...)))
+    if (is.numeric(y)) {
+      p <- t.test(y ~ dat_table1$Responder[ind])$p.value
+    } else {
+      p <- chisq.test(table(y, droplevels(dat_table1$Responder[ind])))$p.value
+    }
+    s[2] <- sub("<", "&lt;", format.pval(p, digits=3, eps=0.001))
+    s
+  } else {
+    render.default(x=x, name=name, ...)
+  }
+}
+
+rndr.strat <- function(label, n, ...) {
+  ifelse(n==0, label, render.strat.default(label, n, ...))
+}
+
+# define text for footnote
+fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
+
+table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
+       data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, footnote = fn)
+
+
+
+#####################################
+#                                   #
+#         2. Serum markers          #
+#                                   #
+#####################################
+
+# change data structure for easier statistical comparison
+dat_serum_markers_tidy <- dat %>%
+  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
+  gather(serum_marker, value,-c(ID, Responder,Baseline)) %>%
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) %>% 
+  filter(!is.na(log_val))
+
+# plot 4 markers in separate plots and calculate statistics
+plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", 
+                     plot.type = "dotplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
+                     method ="t.test", p.label="{p.signif}", facet="serum_marker")
+png("serum_markers.png", units="in", width=5, height=4, res=1200)
+plot_serum_markers$graph
+dev.off()
+
+plot_serum_markers$stat_test_results
+
+
+#####################################
+#                                   #
+#           3. miRNAs               #
+#                                   #
+#####################################
 
 # tidy miRNA data.....................................................................................................
-dat_miRNA_tidy <- dat_combined %>% 
-  gather(miRNA, expression, contains("mir")) %>%
+dat_miRNA_tidy <- dat %>% 
+  # only use data where miRNA data was measured 
+  filter(miRExpAssess == 1) %>%
+  gather(miRNA, expression, contains("hsa")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
-  mutate(log_exp = log2(expression)) 
+  mutate(log_exp = log2(expression))
 
-dat_combined %>% select(contains("mir"))
 
-# tidy lab parameter data.............................................................................................
-dat_lab_pars_tidy <- dat_combined %>%
-  filter(!is.na(CRP) & !is.na(LDH)  &!is.na(S100)) %>%
-  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
-  gather(lab_parameter, value,-c(ID, Responder,Baseline)) %>%
-  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) 
 
 
 
@@ -37,13 +126,23 @@ dat_lab_pars_tidy <- dat_combined %>%
 
 # Plot miRNA data
 plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05,
-                     plot.type = "dotplot", significance=T, Legend = F, var.equal = F,
+                     plot.type = "dotplot", significance=F, Legend = F, var.equal = F,
                      method ="t.test", p.label="p = {round(p,4)}",p.size = 3, facet="miRNA")
 
 png("miRNAs.png", units="in", width=7, height=7, res=1200)
 plot_miRNA$graph
 dev.off()
 
+
+
+
+
+# tidy lab parameter data.............................................................................................
+dat_lab_pars_tidy <- dat %>%
+  filter(!is.na(CRP) & !is.na(LDH)  &!is.na(S100)) %>%
+  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
+  gather(lab_parameter, value,-c(ID, Responder,Baseline)) %>%
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) 
 
 
 # Plot lab parameter data

@@ -28,6 +28,9 @@ setDT(dat_table1)
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
 dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja") , labels = c("no", "yes"))
+
+dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
+
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
@@ -49,9 +52,32 @@ label(dat_table1$Hirnmetastase) <- "Brain metastasis"
 label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
 
-table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + Responder + ECOG + breslow_thickness_mm + subtype + localization | sex, data=dat_table1)
+rndr <- function(x, name, ...) {
+  if (length(x) == 0) {
+    y <- dat_table1[[name]]
+    s <- rep("", length(render.default(x=y, name=name, ...)))
+    if (is.numeric(y)) {
+      p <- t.test(y ~ dat_table1$Responder)$p.value
+    } else {
+      p <- chisq.test(table(y, droplevels(dat_table1$Responder)))$p.value
+    }
+    s[2] <- sub("<", "&lt;", format.pval(p, digits=3, eps=0.001))
+    s
+  } else {
+    render.default(x=x, name=name, ...)
+  }
+}
 
- 
+rndr.strat <- function(label, n, ...) {
+  ifelse(n==0, label, render.strat.default(label, n, ...))
+}
+
+table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
+       data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, overall=F)
+
+
+# 
+
 
 
 
@@ -59,11 +85,9 @@ table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + 
 dat_miRNA_tidy <- dat %>% 
   # only use data where miRNA data was measured 
   filter(miRExpAssess == 1) %>%
-  gather(miRNA, expression, contains("mir")) %>%
+  gather(miRNA, expression, contains("hsa")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
   mutate(log_exp = log2(expression))
-
-
 
 
 

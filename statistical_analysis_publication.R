@@ -57,16 +57,11 @@ table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + 
 
 # tidy miRNA data.....................................................................................................
 dat_miRNA_tidy <- dat %>% 
+  # only use data where miRNA data was measured 
+  filter(miRExpAssess == 1) %>%
   gather(miRNA, expression, contains("mir")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
-  mutate(log_exp = log2(expression)) 
-
-
-
-
-
-
-
+  mutate(log_exp = log2(expression))
 
 
 
@@ -78,7 +73,7 @@ dat_miRNA_tidy <- dat %>%
 
 # Plot miRNA data
 plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05,
-                     plot.type = "dotplot", significance=T, Legend = F, var.equal = F,
+                     plot.type = "dotplot", significance=F, Legend = F, var.equal = F,
                      method ="t.test", p.label="p = {round(p,4)}",p.size = 3, facet="miRNA")
 
 png("miRNAs.png", units="in", width=7, height=7, res=1200)

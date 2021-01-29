@@ -56,7 +56,7 @@ label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "received adjuvant IFN treatment"
 
 
-table1(~ Alter + BRAF +miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder, data=dat_table1)
+table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder, data=dat_table1)
 
  
 

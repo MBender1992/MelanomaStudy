@@ -101,7 +101,7 @@ png("serum_markers.png", units="in", width=5, height=4, res=1200)
 plot_serum_markers$graph
 dev.off()
 
-
+plot_serum_markers$stat_test_results
 
 
 #####################################

@@ -20,19 +20,19 @@ dat <- load_melanoma_data() # n = 101 patients
 #                                   #
 #####################################
 
-# Tabelle 1
+# define which factors to display in table
+dat$sex <- factor(dat$sex, levels = c("m", "w") , labels = c("Male", "Female"))
+dat$miRExpAssess <- factor(dat$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
+dat$Responder <- factor(dat$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
+dat$adjuvant_IFN <- factor(dat$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat$Hirnmetastase <- factor(dat$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat$subtype <- factor(dat$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
+dat$ECOG <- factor(dat$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
+dat$Stadium <- factor(dat$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
+
+# 
 dat_table1 <- dat
 setDT(dat_table1)
-
-# define which factors to display in table
-dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
-dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
-dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
-dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
-dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
-dat_table1$ECOG <- factor(dat_table1$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
-dat_table1$Stadium <- factor(dat_table1$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
 
 # define labels for the table
 label(dat_table1$Alter)      <- "Age (years)"
@@ -72,22 +72,43 @@ rndr.strat <- function(label, n, ...) {
   ifelse(n==0, label, render.strat.default(label, n, ...))
 }
 
+# define text for footnote
+fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
+
 table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
-       data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat)
+       data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, footnote = fn)
+
+
+
+#####################################
+#                                   #
+#         2. Serum markers          #
+#                                   #
+#####################################
+
+# change data structure for easier statistical comparison
+dat_serum_markers_tidy <- dat %>%
+  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
+  gather(serum_marker, value,-c(ID, Responder,Baseline)) %>%
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) %>% 
+  filter(!is.na(log_val))
+
+# plot 4 markers in separate plots and calculate statistics
+plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", 
+                     plot.type = "dotplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
+                     method ="t.test", p.label="{p.signif}", facet="serum_marker")
+png("serum_markers.png", units="in", width=5, height=4, res=1200)
+plot_serum_markers$graph
+dev.off()
 
 
 
 
-
-
-
-
-
-
-
-
-
-
+#####################################
+#                                   #
+#           3. miRNAs               #
+#                                   #
+#####################################
 
 # tidy miRNA data.....................................................................................................
 dat_miRNA_tidy <- dat %>% 

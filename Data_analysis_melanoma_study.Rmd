@@ -100,7 +100,7 @@ To gain insights of the different patients a summary table was generated showing
 # define which factors to display in table
 dat$sex <- factor(dat$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat$miRExpAssess <- factor(dat$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat$Responder <- factor(dat$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
+dat$Responder <- factor(dat$Responder, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat$adjuvant_IFN <- factor(dat$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat$Hirnmetastase <- factor(dat$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat$subtype <- factor(dat$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
@@ -159,6 +159,8 @@ table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + 
 ```
 
 
+# 2. Association of serum marker levels with therapy response
+
 ```{r}
 dat_serum_markers_tidy <- dat %>%
   select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
@@ -174,7 +176,7 @@ plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder"
 # show results of statistical analysis 
 plot_serum_markers$stat_test_results
 ```
-
+![**Fig. 1: log2 serum marker concentration.** Crossbars show mean ± sd. Unequal variances t-test. Raw p-values.](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/serum%20markers.png)
 
 
 

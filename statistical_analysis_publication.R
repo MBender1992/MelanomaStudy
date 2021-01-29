@@ -20,19 +20,19 @@ dat <- load_melanoma_data() # n = 101 patients
 #                                   #
 #####################################
 
-# define which factors to display in table
-dat$sex <- factor(dat$sex, levels = c("m", "w") , labels = c("Male", "Female"))
-dat$miRExpAssess <- factor(dat$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat$Responder <- factor(dat$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
-dat$adjuvant_IFN <- factor(dat$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
-dat$Hirnmetastase <- factor(dat$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
-dat$subtype <- factor(dat$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
-dat$ECOG <- factor(dat$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
-dat$Stadium <- factor(dat$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
-
-# 
 dat_table1 <- dat
 setDT(dat_table1)
+
+# define which factors to display in table
+dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
+dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
+dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
+dat_table1$ECOG <- factor(dat_table1$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
+dat_table1$Stadium <- factor(dat_table1$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
+
 
 # define labels for the table
 label(dat_table1$Alter)      <- "Age (years)"

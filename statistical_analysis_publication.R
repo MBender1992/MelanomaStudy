@@ -24,39 +24,32 @@ dat <- load_melanoma_data() # n = 101 patients
 dat_table1 <- dat
 setDT(dat_table1)
 
+# define which factors to display in table
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-
-
-# dat$trt     <- factor(dat$trt, levels=1:2, labels=c("D-penicillamine", "Placebo"))
-# dat$sex     <- factor(dat$sex, levels=c("m", "f"), labels=c("Male", "Female"))
-# dat$stage   <- factor(dat$stage, levels=1:4, labels=paste("Stage", 1:4))
-# dat$edema   <- factor(dat$edema, levels=c(0, 0.5, 1),
-#                       labels=c("No edema",
-#                                "Untreated or successfully treated",
-#                                "Edema despite diuretic therapy"))
-# dat$spiders <- as.logical(dat$spiders)
-# dat$hepato  <- as.logical(dat$hepato)
-# dat$ascites <- as.logical(dat$ascites)
+dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
+dat_table1$ECOG <- factor(dat_table1$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
 
 
 # define labels for the table
-label(dat_table1$Alter)      <- "age (years)"
+label(dat_table1$Alter)      <- "Age (years)"
 label(dat_table1$BRAF)      <- "BRAF-status"
 label(dat_table1$Stadium)  <- "AJCC stage" # add Stadium to source table
-label(dat_table1$therapy_at_blood_draw) <- "therapy at blood draw"
-label(dat_table1$sex)  <- "sex"
-label(dat_table1$Responder)  <- "immunotherapy response"
+label(dat_table1$therapy_at_blood_draw) <- "Therapy at blood draw"
+label(dat_table1$sex)  <- "Sex"
+label(dat_table1$Responder)  <- "Immunotherapy response"
 label(dat_table1$ECOG)      <- "ECOG"
-label(dat_table1$breslow_thickness_mm)      <- "breslow thickness (mm)" # change to double
-label(dat_table1$subtype) <- "subtype"
-label(dat_table1$localization) <- "localization"
-label(dat_table1$Hirnmetastase) <- "brain metastasis"
+label(dat_table1$breslow_thickness_mm)      <- "Breslow thickness (mm)" # change to double
+label(dat_table1$subtype) <- "Subtype"
+label(dat_table1$localization) <- "Localization"
+label(dat_table1$Hirnmetastase) <- "Brain metastasis"
 label(dat_table1$miRExpAssess) <- "miRNA expression measured"
-label(dat_table1$adjuvant_IFN) <- "received adjuvant IFN treatment"
+label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
 
-
-table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder, data=dat_table1)
+table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + Responder + ECOG + breslow_thickness_mm + subtype + localization | sex, data=dat_table1)
 
  
 

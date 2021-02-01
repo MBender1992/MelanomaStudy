@@ -26,7 +26,7 @@ setDT(dat_table1)
 # define which factors to display in table
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
@@ -90,18 +90,19 @@ table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + 
 dat_serum_markers_tidy <- dat %>%
   select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
   gather(serum_marker, value,-c(ID, Responder,Baseline)) %>%
-  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) %>% 
-  filter(!is.na(log_val))
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value)),
+         Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes"))) %>% 
+  filter(!is.na(log_val)) 
 
 # plot 4 markers in separate plots and calculate statistics
-plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", 
+plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", p.adj = "fdr",
                      plot.type = "dotplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
                      method ="t.test", p.label="{p.signif}", facet="serum_marker")
 png("serum_markers.png", units="in", width=5, height=4, res=1200)
 plot_serum_markers$graph
 dev.off()
 
-plot_serum_markers$stat_test_results
+
 
 
 #####################################

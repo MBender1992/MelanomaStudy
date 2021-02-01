@@ -121,7 +121,7 @@ dat_miRNA_tidy <- dat %>%
   mutate(log_exp = log2(expression))
 
 # Plot miRNA data
-plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05,
+plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05, p.adj = "fdr", 
                      plot.type = "dotplot", significance=F, Legend = F, var.equal = F,
                      method ="t.test", p.label="p = {round(p,4)}",p.size = 3, facet="miRNA")
 

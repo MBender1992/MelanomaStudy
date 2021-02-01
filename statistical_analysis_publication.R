@@ -95,9 +95,10 @@ dat_serum_markers_tidy <- dat %>%
   filter(!is.na(log_val)) 
 
 # plot 4 markers in separate plots and calculate statistics
-plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", p.adj = "fdr",
+plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", p.adj = "fdr", 
                      plot.type = "dotplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
                      method ="t.test", p.label="{p.signif}", facet="serum_marker")
+
 png("serum_markers.png", units="in", width=5, height=4, res=1200)
 plot_serum_markers$graph
 dev.off()
@@ -128,7 +129,6 @@ png("miRNAs.png", units="in", width=5.5, height=4, res=1200)
 plot_miRNA$graph
 dev.off()
 
-plot_miRNA$stat_test_results
 
 
 

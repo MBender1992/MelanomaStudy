@@ -100,7 +100,7 @@ dat
 To gain insights of the different patients a summary table was generated showing several different features split by(Table 1). 
 
 
-```{r}
+```{r, message = FALSE}
 dat_table1 <- dat
 setDT(dat_table1)
 
@@ -162,7 +162,9 @@ table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + 
 ```
 
 
-# 2. Association of serum marker levels with therapy response
+# 2. Association of different parameters with therapy response
+
+## 2.1 Serum markers
 
 ```{r, message = FALSE}
 dat_serum_markers_tidy <- dat %>%
@@ -183,7 +185,26 @@ plot_serum_markers$stat_test_results
 ![**Fig. 1: log2 serum marker concentration.** Crossbars show mean ± sd. Unequal variances t-test. Raw p-values.](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/serum%20markers.png)
 
 
+## 2.2 miRNAs
 
+```{r, message = FALSE}
+# tidy miRNA data.....................................................................................................
+dat_miRNA_tidy <- dat %>% 
+  # only use data where miRNA data was measured 
+  filter(miRExpAssess == 1) %>%
+  gather(miRNA, expression, contains("hsa")) %>%
+  mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
+  mutate(log_exp = log2(expression))
 
+# Plot miRNA data
+plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05,
+                     plot.type = "dotplot", significance=F, Legend = F, var.equal = F,
+                     method ="t.test", p.label="p = {round(p,4)}",p.size = 3, facet="miRNA")
+
+# show results of statistical analysis 
+plot_miRNA$stat_test_results
+```
+
+![**Fig. 2: log2 miRNA expression (a.u.).** Crossbars show mean ± sd. Unequal variances t-test. Raw p-values.](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNAs.png)
 
 

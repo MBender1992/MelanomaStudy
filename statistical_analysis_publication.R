@@ -119,41 +119,18 @@ dat_miRNA_tidy <- dat %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
   mutate(log_exp = log2(expression))
 
-
-
-
-
-
-
 # Plot miRNA data
 plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05,
                      plot.type = "dotplot", significance=F, Legend = F, var.equal = F,
                      method ="t.test", p.label="p = {round(p,4)}",p.size = 3, facet="miRNA")
 
-png("miRNAs.png", units="in", width=7, height=7, res=1200)
+png("miRNAs.png", units="in", width=5.5, height=4, res=1200)
 plot_miRNA$graph
 dev.off()
 
+plot_miRNA$stat_test_results
 
 
-
-
-# tidy lab parameter data.............................................................................................
-dat_lab_pars_tidy <- dat %>%
-  filter(!is.na(CRP) & !is.na(LDH)  &!is.na(S100)) %>%
-  select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
-  gather(lab_parameter, value,-c(ID, Responder,Baseline)) %>%
-  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) 
-
-
-# Plot lab parameter data
-plot_lab_pars <- signif_plot_Melanoma(dat_lab_pars_tidy, x="Responder", y="log_val", 
-                                   plot.type = "dotplot", significance=F, Legend = F, ylab = "log2 lab parameter concentration",
-                                   method ="t.test", p.label="{p.signif}", facet="lab_parameter")
-
-png("lab_pars.png", units="in", width=5, height=4, res=1200)
-plot_lab_pars$graph
-dev.off()
 
 
 

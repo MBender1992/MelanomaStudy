@@ -214,4 +214,6 @@ plot_miRNA$stat_test_results
 # 3 ROC Analyse
 Guideline: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5217944/
 
+Glm modeling mit glm und Koeffizienten oder glmnet? 
 
+Explanation of Ridge, Lasso and Elastic Net Regularization

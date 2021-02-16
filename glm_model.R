@@ -30,7 +30,7 @@ xtabs(~ Responder + nras, data=dat2)
 
 dat_model <- dat2 %>% dplyr::select(c(Responder, breslow_thickness_mm, sex, Hirnmetastase, Alter, adjuvant_IFN, Eosinophile, CRP, LDH, S100, BRAF,`hsa-mir-137`, `hsa-mir-514a-3p` ))
 
-logistic <- glm(Responder ~ .,data=dat_model, family="binomial")
+logistic <- glm(Responder ~ log(`hsa-mir-137`) + log(LDH),data=dat_model, family="binomial")
 summary(logistic)
 
 # Unterteilung in Training und Test?
@@ -39,7 +39,7 @@ summary(logistic)
 # independent test auf Testset?
 
 # oder LOOCV mit Feature selection process f¸r jede LOOCV iteration anders --> anschlieﬂend Mittel der Features und daraus ein Model bilden? 
-
+# vorher Gedanken machen ob logarithmieren oder nicht
 
 
   

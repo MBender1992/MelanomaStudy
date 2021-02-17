@@ -53,9 +53,10 @@ xtabs(~ Responder + nras, data=dat2) # too few observations
 # glmnet for feature selection and then rf or xgbTree? or just a simple glm to have coefficients? 
 # or run another glmnet with the reduced variables
 
+# https://stats.stackexchange.com/questions/25305/is-this-a-correct-procedure-for-feature-selection-using-cross-validation?rq=1
+# https://stats.stackexchange.com/questions/60692/not-all-features-selected-by-glmnet-considered-signficant-by-glm-logistic-regre
 
-
-
+# run on bootstrap samples not just different data splits of test and training
 
 
 
@@ -83,7 +84,8 @@ x <- model.matrix(as.formula(paste("Responder ~.")),data=dat3)
 x <- x[,-1]
 
 set.seed(30)
-test <- cv.glmnet(x, dat3$Responder,type.measure = "auc",family = "binomial", nfolds = 5,alpha = 0.6)
+test <- cv.glmnet(x, dat3$Responder,type.measure = "auc",family = "binomial", nfolds = 5,alpha = 1)
+plot(test)
 coef(test, s = "lambda.1se")
 
 library(doParallel)
@@ -113,13 +115,15 @@ library(caret)
 cctrl1 <- trainControl(method="cv", number=10, returnResamp="all",
                        classProbs=TRUE, summaryFunction=twoClassSummary)
 
-x <- model.matrix(as.formula(paste("Responder ~.")),data=dat3)
+x <- model.matrix(Responder ~.,data=dat3)
 x <- x[,-1]
 
 set.seed(849)
 test_class_cv_model <- train(x, dat3$Responder, method = "glmnet", 
-                             trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,by=0.1),
-                                                                                      lambda = seq(0.001,0.1,by = 0.001)))
+                             trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,0.1),
+                                                                                      lambda = seq(0.001,0.2,by = 0.001)))
+
+coef(test_class_cv_model$finalModel, test_class_cv_model$finalModel$lambdaOpt)
 
 x <- model.matrix(as.formula(paste("Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`")),data=dat3)
 x <- x[,-1]
@@ -127,7 +131,6 @@ x <- x[,-1]
 set.seed(849)
 test_class_cv_model <- train(x, dat3$Responder, method = "xgbTree", 
                              trControl = cctrl1,metric = "ROC")
-
 
 
 logistic <- glm(Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`,data=dat3, family="binomial")

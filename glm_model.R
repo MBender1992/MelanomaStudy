@@ -1,42 +1,184 @@
 # <<<<<<<<<<<<< HEAD
 
 # load packages
+library(missForest)
 library(tidyverse)
 library(devtools)
+library(caret)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
+
+#####################################
+## 
+## 1.Data loading and preprocessing
+##
+#####################################
 
 # load data with custom function for melanoma data only for Responders
 dat <- load_melanoma_data() %>% 
   filter(!is.na(Responder)) # n = 81
 
-dat2 <- dat %>%
+dat_fct <- dat %>%
   filter(miRExpAssess == 1) %>%
   select(-c(TRIM_PDL1_Expression , miRExpAssess, therapy_at_blood_draw)) %>%
-  mutate( across(c(Responder, Stadium,BRAF, Baseline,  ECOG, subtype, localization,
+  mutate( across(c(Responder, Stadium, Baseline, BRAF, ECOG, subtype, localization,
                    sex, Hirnmetastase, adjuvant_IFN, befallen_Organe, nras), as.factor)) 
-  
-  
 
-xtabs(~ Responder + Stadium, data=dat2) 
-xtabs(~ Responder + BRAF, data=dat2)
-xtabs(~ Responder + Baseline, data=dat2)
-xtabs(~ Responder + ECOG, data=dat2) # not enough samples in ECOG2
-xtabs(~ Responder + subtype, data=dat2)
-xtabs(~ Responder + localization, data=dat2)
-xtabs(~ Responder + sex, data=dat2)
-xtabs(~ Responder + Hirnmetastase, data=dat2)
-xtabs(~ Responder + adjuvant_IFN, data=dat2)
-xtabs(~ Responder + befallen_Organe, data=dat2)
-xtabs(~ Responder + nras, data=dat2) # too few observations
+xtabs(~ Responder + Stadium, data=dat_fct) 
+xtabs(~ Responder + BRAF, data=dat_fct)
+xtabs(~ Responder + Baseline, data=dat_fct)
+xtabs(~ Responder + ECOG, data=dat_fct) # not enough samples in ECOG2
+xtabs(~ Responder + subtype, data=dat_fct) # too many groups with few samples
+xtabs(~ Responder + localization, data=dat_fct) # too many groups with few samples
+xtabs(~ Responder + sex, data=dat_fct)
+xtabs(~ Responder + Hirnmetastase, data=dat_fct)
+xtabs(~ Responder + adjuvant_IFN, data=dat_fct)
+xtabs(~ Responder + befallen_Organe, data=dat_fct)
+xtabs(~ Responder + nras, data=dat_fct) # too few observations
+
+# remove columns that yield high uncertainty
+dat_fct$ECOG <- NULL
+dat_fct$subtype <- NULL
+dat_fct$localization <- NULL
+dat_fct$nras <- NULL
+dat_fct$Baseline <- NULL
+
+
+#####################################
+## 
+## 1.a Imputation of missing values
+##
+#####################################
+
+# detect percentage of NAs in each column
+NAs <- sapply(dat_fct, function(df){
+  sum(is.na(df) ==TRUE)/length(df);
+})
+
+# remove columns with more than 5 % NAs
+dat_fct <- dat_fct[, -which(NAs > 0.05)]
+
+# convert factor columns to numerical 
+dat_fct$BRAF <- ifelse(dat_fct$BRAF == "pos", 1, 0)
+dat_fct$Stadium <- ifelse(dat_fct$Stadium == "II", 2,ifelse(dat_fct$Stadium == "III", 3, 4))
+
+# impute missing values with random forest algorithm
+set.seed(25)
+dat_imp <- dat_fct %>% 
+  select_if(is.numeric) %>%
+  as.data.frame() %>%
+  missForest() %>%
+  .$ximp %>%
+  # replace calculated probabilities by the factor
+  mutate(BRAF = ifelse(BRAF > 0.5, 1,0),
+         Stadium = round(Stadium))
+
+# replace numerical values by factor for encoding later
+dat_imp$BRAF <- factor(dat_imp$BRAF, levels = c(0,1), labels = c("neg", "pos"))
+dat_imp$Stadium <- factor(dat_imp$Stadium, levels = c(2,3,4), labels = c("II", "III", "IV"))
+
+# replacing NAs with imputed values
+dat_fct$BRAF <- dat_imp$BRAF
+dat_fct$Stadium <- dat_imp$Stadium
+dat_fct$S100 <- dat_imp$S100
 
 
 
 
 
-# remove columns like ECOG and nras with too few observations
-# impute missing values for columns with less than 5 % NA, omit other columns
+
+#####################################
+##
+##  2. Modeling process  
+##
+#####################################
+
+# define test and training set
+set.seed(123)
+ind.train <- createDataPartition(dat_fct$Responder, p = 0.7, list = FALSE)
+
+train.data  <- dat_fct[ind.train, ] # n = 43
+test.data <- dat_fct[-ind.train, ] # n = 18
+
+#####################################
+##
+##  2.a EDA on training set
+##
+#####################################
+
+# change data structure for ggplot
+dat_miR <- train.data %>% 
+  select(contains("mir")) %>% 
+  gather("miRNA", "expression")
+
+# draw histograms for all miRNAs
+miR_hist <- dat_miR %>% 
+  ggplot(aes(expression)) +
+  geom_histogram() +
+  facet_wrap(~miRNA, scales = "free")
+
+# draw qqplots for all miRNAs
+miR_qq <- dat_miR %>% 
+  ggplot(aes(sample = expression)) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~miRNA, scales = "free")
+
+
+
+# draw histograms for all miRNAs log-transformed
+miR_hist_log <- dat_miR %>% 
+  ggplot(aes(log(expression))) +
+  geom_histogram() +
+  facet_wrap(~miRNA, scales = "free")
+
+# draw qqplots for all miRNAs log-transformed
+miR_qq_log <- dat_miR %>% 
+  ggplot(aes(sample = log(expression))) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~miRNA, scales = "free")
+
+## log-transforming miRNA expression improves approximation to normality and gene expression data is known to be log-normal distributed 
+## log-transformed miRNA values were used for ML
+
+# histogram of numerical variables that are not miRNAs
+par(mfrow = c(2,4))
+par(mar=c(0.5, 4.5, 0.5, 0.5))
+
+# original expression values
+hist(train.data$LDH)
+hist(train.data$Eosinophile)
+hist(train.data$S100)
+hist(train.data$CRP)
+
+# log-transformed expression values
+hist(log(train.data$LDH))
+hist(log(train.data$Eosinophile))
+hist(log(train.data$S100))
+hist(log(train.data$CRP))
+
+## lab parameters were also used in log-transformed space
+
+
+
+#####################################
+##
+## 2.b conversion of factors to dummy variables
+##
+#####################################
+
+# dummy encoding of factors with model.matrix
+dmy <- model.matrix(as.formula(paste("Responder ~.")),data=train.data)
+dmy <- dmy[,-1] # remove intercept
+
+
+# 1 model mit signif
+# 1 model mit LASSO feature selection
+# 1 model nur mit miRNas
+# 1 model nur mit herkˆmmlichen Pr‰diktoren
+
 # define test and training set
 # use glmnet for feature selection
 # train glm to get coefficients and quantitative probabilities of response 
@@ -59,37 +201,51 @@ xtabs(~ Responder + nras, data=dat2) # too few observations
 # run on bootstrap samples not just different data splits of test and training
 
 
+# Unterteilung in Training und Test?
+# inner loop for feature selection im Trainingsset?
+# anschlieﬂend glm model auf ganzes set mit den features, um model coefficients zu erhalten 
+# independent test auf Testset?
+
+# oder LOOCV mit Feature selection process f¸r jede LOOCV iteration anders --> anschlieﬂend Mittel der Features und daraus ein Model bilden? 
+# vorher Gedanken machen ob logarithmieren oder nicht
 
 
 
-predict
 
 library(glmnet)
 
-df_test <- dat2 %>% filter(!is.na(S100)) %>%
-  select(LDH, S100, CRP, `hsa-mir-132-3p`, `hsa-mir-137`,`hsa-mir-197-3p`,`hsa-mir-214-3p`, `hsa-mir-514a-3p`, Responder)
-
-test <- cv.glmnet(as.matrix(df_test[,1:8]), df_test$Responder,type.measure = "deviance",family = "binomial", nfolds = 5)
 
 
 
 dat2 <- dat2%>% select(-c(ECOG,Hirnmetastase, ID, nras, Baseline, subtype, localization, Alter, breslow_thickness_mm,adjuvant_IFN, befallen_Organe))
-
 dat3 <- dat2 %>% filter(!is.na(BRAF) & !is.na(S100)& !is.na(Stadium))
 
 ind <- which(names(dat3) == "Responder")
 dat3$Responder <- ifelse(dat3$Responder == "ja", 1,0)
 
+
+# Lasso 
 x <- model.matrix(as.formula(paste("Responder ~.")),data=dat3)
 x <- x[,-1]
 
 set.seed(30)
-test <- cv.glmnet(x, dat3$Responder,type.measure = "auc",family = "binomial", nfolds = 5,alpha = 1)
+test.cv <- cv.glmnet(x, dat3$Responder,type.measure = "auc",family = "binomial", nfolds = 5,alpha = 1)
 plot(test)
 coef(test, s = "lambda.1se")
 
+
+lasso.model <- glmnet(x, dat3$Responder,type.measure = "auc", alpha = 1, family = "binomial",
+                      lambda = test.cv$lambda.1se)
+coef(lasso.model)
+
+
+
+
+
+
+
 library(doParallel)
-# cross validation to find the optimal parameters
+# cross validation to find the optimal parameters for elastic net regression
 a <- seq(0.1, 0.9, 0.05)
 search <- foreach(i = a, .combine = rbind) %dopar% {
   cv <- cv.glmnet(x, dat3$Responder,type.measure = "auc", family = "binomial", nfold = 10,  parallel = TRUE, alpha = i)
@@ -101,13 +257,9 @@ coef(md3)
 
 
 
-# Unterteilung in Training und Test?
-# inner loop for feature selection im Trainingsset?
-# anschlieﬂend glm model auf ganzes set mit den features, um model coefficients zu erhalten 
-# independent test auf Testset?
 
-# oder LOOCV mit Feature selection process f¸r jede LOOCV iteration anders --> anschlieﬂend Mittel der Features und daraus ein Model bilden? 
-# vorher Gedanken machen ob logarithmieren oder nicht
+
+
 
 library(caret)
 
@@ -122,8 +274,14 @@ set.seed(849)
 test_class_cv_model <- train(x, dat3$Responder, method = "glmnet", 
                              trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,0.1),
                                                                                       lambda = seq(0.001,0.2,by = 0.001)))
-
 coef(test_class_cv_model$finalModel, test_class_cv_model$finalModel$lambdaOpt)
+
+
+
+
+
+
+
 
 x <- model.matrix(as.formula(paste("Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`")),data=dat3)
 x <- x[,-1]
@@ -133,24 +291,27 @@ test_class_cv_model <- train(x, dat3$Responder, method = "xgbTree",
                              trControl = cctrl1,metric = "ROC")
 
 
+
+
+
+
+
+
+
+# simple logistic regression (Not recommended when features have been chosen by LASSO or elastic net regularization)
 logistic <- glm(Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`,data=dat3, family="binomial")
 summary(logistic)
-library(pscl)
 
-mcFR2 <- pR2(logistic)
 
-# log likelihood of fit
-llfit <- mcFR2[1]
-#log likelihood of null model
-llnull <- mcFR2[2]
+ll.null <- logistic$null.deviance/-2
+ll.proposed <- logistic$deviance/-2
 
-# calculating chi≤
-#2*(llfit - llnull)
+## McFadden's Pseudo R^2 = [ LL(Null) - LL(Proposed) ] / LL(Null)
+(ll.null - ll.proposed) / ll.null
 
-# calculating p
-#chi≤ = 26 with df = 4
 
-#--> p < 0.0001
+## The p-value for the R^2
+1 - pchisq(2*(ll.proposed - ll.null), df=(length(logistic$coefficients)-1))
 
 nullmodel <- glm(Responder ~ 1, data = dat3, family = "binomial")
 anova(nullmodel,logistic, test = 'LRT')

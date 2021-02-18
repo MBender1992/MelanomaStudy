@@ -49,31 +49,8 @@ label(dat_table1$Hirnmetastase) <- "Brain metastasis"
 label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
 
-# function to display p-values  
-rndr <- function(x, name, ...) {
-  if (length(x) == 0) {
-    y <- dat_table1[[name]] 
-    ind <- !is.na(y)
-    y <- y[ind]
-    s <- rep("", length(render.default(x=y, name=name, ...)))
-    if (is.numeric(y)) {
-      p <- t.test(y ~ dat_table1$Responder[ind])$p.value
-    } else {
-      p <- chisq.test(table(y, droplevels(dat_table1$Responder[ind])))$p.value
-    }
-    s[2] <- sub("<", "&lt;", format.pval(p, digits=3, eps=0.001))
-    s
-  } else {
-    render.default(x=x, name=name, ...)
-  }
-}
-
-rndr.strat <- function(label, n, ...) {
-  ifelse(n==0, label, render.strat.default(label, n, ...))
-}
-
 # define text for footnote
-fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
+fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chiÂ² test for categorical data. Raw p-values are shown."
 
 table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
        data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, footnote = fn)

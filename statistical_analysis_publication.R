@@ -64,7 +64,8 @@ table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + 
 #####################################
 
 # change data structure for easier statistical comparison
-dat_serum_markers_tidy <- dat %>%
+dat_serum_markers_tidy <- dat %>% 
+  filter(!is.na(Responder)) %>%
   select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
   gather(serum_marker, value,-c(ID, Responder,Baseline)) %>%
   mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value)),
@@ -83,6 +84,8 @@ dev.off()
 
 
 
+
+
 #####################################
 #                                   #
 #           3. miRNAs               #
@@ -91,8 +94,8 @@ dev.off()
 
 # tidy miRNA data.....................................................................................................
 dat_miRNA_tidy <- dat %>% 
-  # only use data where miRNA data was measured 
-  filter(miRExpAssess == 1) %>%
+  # only use data where miRNA data was measured and responder status is known
+  filter(miRExpAssess == 1 & !is.na(Responder)) %>%
   gather(miRNA, expression, contains("hsa")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
   mutate(log_exp = log2(expression))

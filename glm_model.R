@@ -196,13 +196,17 @@ y.test <- test$Responder
 ##
 #####################################
 
+# nested cv??
+# https://stackoverflow.com/questions/62276400/how-to-do-nested-cross-validation-with-lasso-in-caret-or-tidymodels
+# https://www.tidymodels.org/learn/work/nested-resampling/
+# https://stats.stackexchange.com/questions/65128/nested-cross-validation-for-model-selection
 
 # activate parallel computing
 cl <- makeCluster(detectCores(), type='PSOCK')
 registerDoParallel(cl)
 
 # define ctrl function
-cctrl1 <- trainControl(method="cv", number=10, returnResamp="all", 
+cctrl1 <- trainControl(method="repeatedcv", number=10,repeats = 5, returnResamp="all", 
                        classProbs=TRUE, summaryFunction=twoClassSummary)
 
 # run glmnet model
@@ -219,13 +223,11 @@ coef(md$finalModel, md$finalModel$lambdaOpt)
 
 
 
-
 # bootstrap optimized auc
 library(nlpred)
 x <- model.matrix(Responder~.,data=dat_fct)[,-1] 
 y <- ifelse(dat_fct$Responder == "ja", 1,0)
 boot_auc(y, x, B = 10, learner = "glm_wrapper")
-
 
 
 

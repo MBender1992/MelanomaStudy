@@ -5,6 +5,7 @@ library(missForest)
 library(tidyverse)
 library(devtools)
 library(caret)
+library(doParallel)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -25,7 +26,6 @@ dat_fct <- dat %>%
   mutate( across(c(Responder, Stadium, Baseline, BRAF, ECOG, subtype, localization,
                    sex, Hirnmetastase, adjuvant_IFN, befallen_Organe, nras), as.factor)) 
 
-# identify if each groups has responders and nonresponders
 xtabs(~ Responder + Stadium, data=dat_fct) 
 xtabs(~ Responder + BRAF, data=dat_fct)
 xtabs(~ Responder + Baseline, data=dat_fct)
@@ -44,7 +44,7 @@ dat_fct$subtype <- NULL
 dat_fct$localization <- NULL
 dat_fct$nras <- NULL
 dat_fct$Baseline <- NULL
-
+dat_fct$ID <- NULL
 
 #####################################
 ## 
@@ -162,6 +162,15 @@ hist(log(train.data$CRP))
 
 ## lab parameters were also used in log-transformed space
 
+# transform training data
+tmp.train <- train.data %>% select(where(is.numeric)) 
+fctrs <- train.data %>% select(!where(is.numeric))
+train <- data.frame(cbind(log(tmp.train  + 1), fctrs))
+
+# transform testing data
+tmp.test  <- test.data %>% select(where(is.numeric))
+fctrs <- test.data %>% select(!where(is.numeric))
+test <- data.frame(cbind(log(tmp.test  + 1), fctrs))
 
 
 #####################################
@@ -171,14 +180,76 @@ hist(log(train.data$CRP))
 #####################################
 
 # dummy encoding of factors with model.matrix
-dmy <- model.matrix(as.formula(paste("Responder ~.")),data=train.data)
-dmy <- dmy[,-1] # remove intercept
+x.train <- model.matrix(Responder~.,data=train)[,-1] 
+y.train <- train$Responder
 
+# dummy encoding of factors with model.matrix for test set
+x.test <- model.matrix(Responder~.,data=test)[,-1] 
+y.test <- test$Responder
+
+
+
+
+#####################################
+##
+## 2.c Fitting the model
+##
+#####################################
+
+# nested cv??
+# https://stackoverflow.com/questions/62276400/how-to-do-nested-cross-validation-with-lasso-in-caret-or-tidymodels
+# https://www.tidymodels.org/learn/work/nested-resampling/
+# https://stats.stackexchange.com/questions/65128/nested-cross-validation-for-model-selection
+
+# activate parallel computing
+cl <- makeCluster(detectCores(), type='PSOCK')
+registerDoParallel(cl)
+
+# define ctrl function
+cctrl1 <- trainControl(method="repeatedcv", number=10,repeats = 5, returnResamp="all", 
+                       classProbs=TRUE, summaryFunction=twoClassSummary)
+
+# run glmnet model
+set.seed(849)
+md <- train(x.train, y.train, method = "glmnet",preProcess = c("center","scale"),
+            trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,0.1),
+                                                                     lambda = seq(0.001,0.2,by = 0.001)))
+
+max(md$results$ROC)
+coef(md$finalModel, md$finalModel$lambdaOpt)
+
+
+
+
+
+
+# bootstrap optimized auc
+library(nlpred)
+x <- model.matrix(Responder~.,data=dat_fct)[,-1] 
+y <- ifelse(dat_fct$Responder == "ja", 1,0)
+boot_auc(y, x, B = 10, learner = "glm_wrapper")
+
+
+
+pred <- md %>% predict(x.test, type = "prob")
+obs <- y.test
+library(pROC)
+roc_obj <- roc(obs, pred$ja)
+auc(roc_obj)
+
+# cross validation to find the optimal parameters for elastic net regression
+
+
+# internal validation via bootstrap optimism? https://stats.stackexchange.com/questions/103411/internal-validation-via-bootstrap-what-roc-curve-to-present
+# https://stats.stackexchange.com/questions/61344/getting-the-bootstrap-validated-auc-in-r
+# https://www.rdocumentation.org/packages/rms/versions/6.1-1/topics/lrm mal durcharbeiten
+# concordance measure anstatt ROC?
+# cost function?
 
 # 1 model mit signif
 # 1 model mit LASSO feature selection
 # 1 model nur mit miRNas
-# 1 model nur mit herk?mmlichen Pr?diktoren
+# 1 model nur mit herkömmlichen Pr?diktoren
 
 # define test and training set
 # use glmnet for feature selection

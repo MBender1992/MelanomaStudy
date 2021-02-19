@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1613739537786.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "AF7656B",
+    "lastKnownWriteTime" : 1613735645,
+    "last_content_update" : 1613735645,
+    "path" : "Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Github/MelanomaStudy/Template_ML.R",
+    "project_path" : "Template_ML.R",
+    "properties" : {
+        "cursorPosition" : "196,0",
+        "scrollLine" : "180"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

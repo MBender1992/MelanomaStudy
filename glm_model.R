@@ -220,9 +220,6 @@ coef(md$finalModel, md$finalModel$lambdaOpt)
 
 
 
-
-
-
 # bootstrap optimized auc
 library(nlpred)
 x <- model.matrix(Responder~.,data=dat_fct)[,-1] 

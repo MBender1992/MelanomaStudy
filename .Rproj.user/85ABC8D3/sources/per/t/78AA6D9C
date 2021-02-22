@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1613739786761.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2777880718",
+    "id" : "78AA6D9C",
+    "lastKnownWriteTime" : 1614008832,
+    "last_content_update" : 1614008832620,
+    "path" : "Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Github/base_scripts/R_functions_Melanoma.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "706,0",
+        "scrollLine" : "695"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

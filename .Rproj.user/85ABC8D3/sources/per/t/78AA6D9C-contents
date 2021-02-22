@@ -1,0 +1,738 @@
+#<<<<<<<<<<<HEAD 
+
+##################################################
+# This script contains several useful functions  #
+# for the analysis of melanoma data gathered     #
+# for the phd thesis of Ramona/Leonie            #
+##################################################
+
+######################################################
+#                                                    #
+# 1. Functions to ingest data in a reproducible way  #
+#                                                    #
+######################################################
+
+
+#....................................................................................................................
+# this function allows transposition of dataframes while retaining row and column names #
+# (which are lost by default when transposing data as its converted into a matrix)      #
+
+# Arguments                                                                                         #
+#  - colnames: names of the dataframe columns are needed as the transpose argument omits colnames   #
+#              so they need to be added manually later                                              #
+#  - data: dataframe to be transposed                                                               #
+
+transpose_dataframe <-  function(colnames, data){
+  names <- c(colnames)
+  dat_wide <- data[,-1] %>%
+    t %>% 
+    as_tibble(rownames = NA) %>%
+    rownames_to_column %>% 
+    setNames(names)
+  return(dat_wide)
+}
+# ..................................................................................................................
+
+
+
+
+
+
+# ....................................................................................................................
+# this function uses the previously defined functions and a uniform pipeline #
+# to combine data from the 4 tables with raw data and transform them to a    #
+# uniform format                                                             #
+
+# Arguments                                                                             #
+#  - characterAsFactor: logical defining if characters should be converted to factors   #
+#                       important for example for machine learning                      #
+
+load_melanoma_data <- function(){
+  require(devtools)
+  
+  url_miR <- "https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Data/miRNA_Expression_Fireplex_Melanoma_Study.csv" 
+  url_meta <- "https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Data/Metadata_Melanoma_Study.csv" 
+  
+  
+  # load csv files
+  dat_miR   <- read_csv(url(url_miR)) 
+  dat_meta  <- read_csv(url(url_meta)) %>%
+    select(-c(therapy_start, Abnahmedatum)) %>%
+    mutate(TRIM_PDL1_Expression = str_replace_all(TRIM_PDL1_Expression,"\\++","+")) %>% 
+    mutate(TRIM_PDL1_Expression = ifelse(TRIM_PDL1_Expression == "o", NA,TRIM_PDL1_Expression)) %>%
+    mutate(Stadium = toupper(Stadium)) %>%
+    mutate(Stadium = str_extract(Stadium, "^[IV]{1,3}")) %>%
+    mutate(BRAF = str_replace_all(BRAF, "\\.", "")) %>% 
+    mutate(breslow_thickness_mm = parse_number(breslow_thickness_mm))
+  
+    # change ID column to uniform capital letters for later filtering
+  names(dat_miR) <- c("miRNA", toupper(names(dat_miR)[-1]))
+  
+  # define IDs to be dropped for further analyses
+  controls <- c("K104_1", "K104_2", "K104_3A", "K104_3B")
+  duplicates <- c("22B","38B","39B","47B")
+  
+  # wide miR data (78 patients with miRNA data)
+  dat_miR_trans <- transpose_dataframe(colnames = c("ID",dat_miR$miRNA), data = dat_miR) %>%
+    filter(!ID %in% controls & !ID %in% duplicates) %>%   #drop duplicate patient data 
+    mutate(ID = parse_number(ID)) #convert ID to numeric
+  
+  # join both tables
+  right_join(dat_miR_trans,dat_meta, by="ID") %>% 
+    filter(!ID %in% c(1,2)) %>% # no data available for patient 1 and 2 but still part of the source table
+    mutate(miRExpAssess = ifelse(is.na(rowSums(.[,which(str_detect(names(.),"mir"))])), 0,1))  %>%# if no miRNA expression has been measure fill in 0
+    arrange(ID)
+}
+# ..................................................................................................................
+
+
+
+
+
+
+
+
+# ....................................................................................................................
+# this function loads the data for overlap wang to be directly used in a heatmap
+
+# Arguments                                                                             
+
+dat_heatmap_wang <- function(add.data = NULL, join.by = "ID"){
+  # change working directory
+  setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Projekte/Doktorarbeiten_Melanom_Liquid_Biopsies/Daten")
+  
+  # load miRNA data
+  dat_melanoma <- load_melanoma_data(characterAsFactor = FALSE) %>% 
+    select(-c(adjuvant_IFN, befallen_Organe))
+  # load overlap data
+  overlap_wang <- read_csv("overlap_our_panel_Wang.csv")
+  
+  #tidy data
+  dat_tidy <- dat_melanoma %>% 
+    gather(
+      miRNA, 
+      expression,
+      -c(ID, Hirnmetastase, BRAF, Stadium,
+         Group, Baseline,Responder, age, sex,
+         CRP, LDH, S100, Eosinophile,TRIM_PDL1_Expression)
+    ) %>% 
+    mutate(Stadium = ifelse(Stadium == "IV", "IV", "<IV"),
+           log_exp = log2(expression),
+           BRAF = factor(BRAF, levels = c("wt", "mu", "nras")))
+  
+  # define index with miRNAs in overlap
+  index_wang <- overlap_wang  %>% .$miRNA %>%
+    str_replace_all(" ", "")
+  
+  # extract overlap data
+  if(!is.null(add.data)){
+  dat_wang <- dat_tidy %>% 
+    filter(miRNA %in% index_wang) %>%
+    inner_join(add.data, by = join.by)
+  } else { 
+    dat_wang <- dat_tidy %>% 
+      filter(miRNA %in% index_wang)
+    }
+  
+  #  prepare data for Heatmap
+  dat_Heatmap <- dat_wang %>% 
+    select(-expression) %>%
+    spread(miRNA, log_exp) %>% 
+    data.frame() %>%
+    column_to_rownames("ID") 
+  
+  return(dat_Heatmap)
+}
+#.............................................................................................................
+
+
+
+
+
+
+
+######################################################
+#                                                    #
+#        2. Functions for summary statistics         #
+#                                                    #
+######################################################
+
+
+#....................................................................................................................
+# this function calculates the proportions of a given characteristic #
+# (for example number of patients with BRAF mutations)               #
+# also calculates percentages of the whole population                #
+
+# Arguments                                         #
+#  - data: dataframe to be analysed                 #
+#  - var: variable (column) that shall be analysed  #
+
+patient_table <- function(data, var){
+  nas <- table(is.na(data[,var]))
+  dat <- table(data[,var])
+  new_dat <- data.frame(var = c(dat[1:length(dat)],ifelse(length(nas)==2, nas[2],0))) 
+  rownames(new_dat) <- c(names(dat[1:length(dat)]), "NA")
+  new_dat <- new_dat %>% rownames_to_column()
+  dat_percent <- new_dat %>% mutate(percent = round(var/sum(var)*100,1)) 
+  colnames(dat_percent) <- c(var, "n", "percent")
+  return(dat_percent)
+}
+# ..................................................................................................................
+
+
+
+
+
+#.....................................................................................................................
+# this function calculates the influence of catergorical variables on Responder status #
+
+# Arguments                                                                                         #
+#  - data:  data                                                                                    #
+#  - dependent.var: dependent variable in this case Responder                                       #
+#  - idependent.var: independent variable tested for influencen on dependent variable               #
+#  - dep.var.yes: name of the condition where the dependent variable is present, e,g. "pos" or "ja" #
+#  - dep.var.no: name of the condition where the dependent variable is absent, e,g. "neg" or "nein" #
+#  - independent.var.condition.yes: condition of the ind.var to be tested against other condition   #
+
+two_by_two_Responder <- function(data,dependent.var,independent.var, dep.var.yes, dep.var.no, independent.var.condition.yes){
+  Responder_ja <- sum(data[,dependent.var] == dep.var.yes &  data[,independent.var] == independent.var.condition.yes & !is.na(data[,independent.var]))
+  Responder_nein <- sum(data[,dependent.var] == dep.var.yes &  data[,independent.var] != independent.var.condition.yes & !is.na(data[,independent.var]))
+  Nonresponder_ja <- sum(data[,dependent.var] == dep.var.no &  data[,independent.var] == independent.var.condition.yes & !is.na(data[,independent.var]))
+  Nonresponder_nein <- sum(data[,dependent.var] == dep.var.no &  data[,independent.var] != independent.var.condition.yes & !is.na(data[,independent.var]))
+  two_by_two <- tibble(condition = c("+","-"),
+                       Responder = c(Responder_ja, Responder_nein),
+                       NonResponder = c(Nonresponder_ja, Nonresponder_nein))
+  return(two_by_two)
+}
+# ..................................................................................................................
+
+
+
+
+
+
+
+
+
+
+
+######################################################
+#                                                    #
+#        3. Plotting and significance Tests          #
+#                                                    #
+######################################################
+
+
+# ..................................................................................................................
+# this function is used to ensure a uniform theme and layout is used in each plot #
+
+# Arguments                                                     #
+#  - axis.text.size: Size of the axes                           #
+#  - Legend: logical indicating if legend should be printed     #
+theme_Melanoma <- function(axis.text.size=10, Legend = TRUE,...){
+  
+  theme_custom <- theme_pubr()+
+    theme(axis.title.x=element_text(face = "bold", size = axis.text.size+1),
+          axis.text.x = element_text(face = "bold", size=axis.text.size),
+          axis.text.y = element_text(face = "bold", size=axis.text.size),
+          axis.title.y = element_text(face = "bold", size = axis.text.size+1),
+          panel.grid.minor=element_blank(),
+          strip.text.x = element_text(face = "bold", size = axis.text.size+1),
+          strip.background=element_blank(),
+          panel.spacing = unit(1, "lines"), ...) 
+  
+  
+  if(Legend == TRUE) {
+    theme_custom + theme(legend.key.size = unit(1,"line"))
+  } else {
+    theme_custom + theme(legend.position = "none")
+  }
+}
+
+# ..................................................................................................................
+
+
+
+
+
+
+#.................................................................................................................................
+# these functions are used to ensure a uniform color palette in each plot #
+
+scale_fill_Melanoma <- function(...){
+  scale_fill_manual(values = c("darkgrey", "cornflowerblue","forestgreen","#d73027","purple", ...)) 
+}
+
+scale_color_Melanoma <- function(...){
+  scale_color_manual(values = c("darkgrey", "cornflowerblue","forestgreen","#d73027","purple",...)) 
+}
+# ..................................................................................................................
+
+
+
+
+
+
+#.................................................................................................................................
+# this function calculates t.test or wilcoxon test statistics with fdr adjustment #
+# and adds x and y positions to plot custom p values in plots                     #
+
+# Arguments:
+#  - data: data
+#  - x: independent variable
+#  - y: dependent variable
+#  - group.var: grouping variable if applicable
+#  - p.adj: p adjustment method 
+#  - signif: significance level (other results are filtered)
+#  - method: can either be "t.test" or "wilcoxon"  
+
+
+signif_Melanoma <- function(data,x,y, group.var=NULL, p.adj = "fdr",var.equal = FALSE, filter.p.adj= FALSE,
+                            signif= 1, method="t.test"){
+  
+  if(filter.p.adj == FALSE){
+    warning("Results filtered by raw p-values")
+  }
+  
+  formula <- paste(
+    y,"~",
+    x, sep=" "
+  )
+  
+  data <- data %>% filter(!is.na(get(x)) & !is.na(get(y)))
+  
+  pvals <- compare_means(
+    as.formula(formula),
+    data=data,
+    group.by = group.var,
+    var.equal = var.equal,
+    method=method,
+    p.adjust.method = p.adj
+  ) 
+  
+  dat.signif <- pvals %>% 
+    add_significance("p.adj") %>%
+    
+    {
+      if (filter.p.adj == TRUE) filter(.,p.adj < signif)
+      else filter(.,p < signif)
+    }
+  
+  return(dat.signif)
+}
+# ..................................................................................................................
+
+
+
+
+
+# ..................................................................................................................
+# this function plots desired variables against each other and adds significance level #
+
+# Arguments:
+#  - data: data
+#  - diff.expr: Object calculated with previous function (signif_Melanoma)
+#  - x: independent variable
+#  - y: dependent variable
+#  - facet: grouping variable if applicable, used for facetting
+#  - p.label: specifies how the p-value is displayed, can be manually changed to p.adj, p.format, etc. 
+#             mathematic operations like "round" are also possible within brackets
+#  - add: specifies additional geometrics
+#  - scale: specify if all plots shall have the same scale or if scales are free
+#  - width: controls width of boxes
+#  - outlier.shape: if jitter is added this helps avoid plotting points twice
+#  - add.params: define shape, size, etc of added objects (like jitter)
+#  - axis.text.size: size of axes
+#  - ylab: y axis label
+#  - significance: logical, if true p-value is displayed
+#  - tip.length: defines length of tips (on bracket showing significance)
+#  - p.size: size of p-value
+#  - n_breaks: number of y axis breaks
+#  - Legend: logical, if TRUE legend will be displayed
+
+boxplot_Melanoma <- function(data,
+                             diff.expr = NULL,
+                             x,
+                             y,
+                             facet = NULL,
+                             p.label = "p.adj.signif",
+                             add = "jitter",
+                             scales = "free",
+                             width = 0.4,
+                             outlier.shape=19,
+                             add.params = list(color = "black",size = 1, width = 0.05),
+                             axis.text.size = 8,
+                             ylab = "log-2 miRNA Expression (a.u.)",
+                             significance = TRUE,
+                             tip.length=0,
+                             p.size=5,
+                             n_breaks = 10,
+                             Legend = TRUE,
+                             nrow.facet = 2,
+                             ...){
+
+  if(is.null(diff.expr))
+    warning("No statistics are calculated as argument diff.expr is missing")
+
+  significance.new <- if(is.null(diff.expr)) {
+    FALSE
+  } else{
+    significance
+  }
+
+  data <- data %>%
+    {if(!is.null(facet) & !is.null(diff.expr)) filter(.,get(facet) %in% unlist(diff.expr[,1]))
+      else .}
+
+  p <- data  %>%
+    filter(!is.na(get(x))) %>%
+    ggboxplot(x = x,
+              y = y,
+              fill = x,
+              add = add,
+              scales = scales,
+              width = width,
+              outlier.shape= ifelse(add == "jitter", NA, outlier.shape),
+              add.params = add.params, ...
+    )
+
+  p.facet <- facet(p, facet.by = facet, nrow = nrow.facet, scales = scales) +
+    ylab(ylab) +
+    theme_Melanoma(axis.text.size = axis.text.size,Legend =Legend) +
+    scale_color_Melanoma() +
+    scale_fill_Melanoma()
+  
+  p.facet + if(significance.new == TRUE){stat_pvalue_manual(diff.expr , label = p.label,
+                                                            tip.length = tip.length,size=p.size,
+                                                            y.position = max(data[,y])*1.05)}
+}
+# ..................................................................................................................
+
+
+
+
+
+# ..................................................................................................................
+# this function is analogous to the previous one plotting a dotplot#
+
+dotplot_Melanoma <- function(data,
+                             diff.expr = NULL,
+                             x,
+                             y,
+                             facet = NULL,
+                             p.label = "p.adj.signif",
+                             add = "mean_ci",
+                             scales = "free",
+                             size = 0.7,
+                             width = 0.3,
+                             outlier.shape=19,
+                             add.params = list(size = 0.7, width = 0.1,color ="black"),
+                             axis.text.size = 8,
+                             ylab = "log-2 miRNA Expression (a.u.)",
+                             significance = TRUE,
+                             tip.length=0,
+                             p.size=5,
+                             position = position_jitter(0.02,0.02),
+                             n_breaks = 10,
+                             crossbar.width = 0.3,
+                             crossbar.size = 0.25,
+                             Legend = TRUE,
+                             nrow.facet =2,
+                             ...){
+
+  if(is.null(diff.expr))
+    warning("No statistics are calculated as argument diff.expr is missing")
+
+  significance.new <- if(is.null(diff.expr)) {
+    FALSE
+  }
+  else{
+    significance
+  }
+
+  data <- data %>%
+    {if(!is.null(facet)) filter(.,get(facet) %in% unlist(diff.expr[,1]))
+      else .}
+
+  p <- data  %>%
+    filter(!is.na(get(x))) %>%
+    ggdotplot(x = x,
+              y = y,
+              color = x,
+              add = add,
+              size=size,
+              width = width,
+              position = position,
+              error.plot = "errorbar",
+              add.params = add.params,
+              ...)
+
+  p.facet <- facet(p, facet.by = facet, nrow = nrow.facet, scales = scales) +
+    stat_summary(fun = mean, fun.min = mean, fun.max = mean,
+                 geom = "crossbar", width = crossbar.width, color = "black", size=crossbar.size) +
+    ylab(ylab) +
+    theme_Melanoma(axis.text.size = axis.text.size,Legend =Legend) +
+    scale_color_Melanoma()+
+    scale_fill_Melanoma()
+
+  p.facet +  if(significance.new == TRUE){stat_pvalue_manual(diff.expr , label = p.label,
+                                                             tip.length = tip.length,size=p.size,
+                                                             y.position = max(data[,y]))}
+}
+# ..................................................................................................................
+
+
+
+
+# ..................................................................................................................
+# this function plots desired variables against each other and adds significance level #
+
+# Arguments:
+#  - data: data
+#  - x: independent variable
+#  - y: dependent variable
+#  - facet: grouping variable if applicable, used for facetting
+#  - signif: significance level (other results are filtered)
+#  - method: method accepted by compare_means
+#  - p.label: specifies how the p-value is displayed, can be manually changed to p.adj, p.format, etc. 
+#             mathematic operations like "round" are also possible within brackets
+#  - plot.type: specifies desired plot type. can be chosen between "dotplot" and "boxplot"
+#  - data: data
+#  - group.var: grouping variable if applicable
+#  - p.adj: p adjustment method 
+#  - signif: significance level (other results are filtered)
+
+
+signif_plot_Melanoma <- function(data, x, y, signif=1, method="t.test",p.adj = "fdr", facet =NULL, var.equal = FALSE,
+                                 nrow.facet = 2, filter.p.adj= FALSE, p.label="p = {round(p,4)}",
+                                 plot.type = "boxplot",  ...){
+  if (method == "t.test") {
+    message("Using T-Test for statistical comparison")
+  } else {
+    message("Using Wilcoxon Rank Sum Test for statistical comparison")
+  }
+  data <- data %>% filter(!is.na(get(x)))
+  significance <- signif_Melanoma(data=data, x=x, y=y, signif=signif,p.adj = p.adj, var.equal = var.equal,
+                                  group.var = facet, method = method, filter.p.adj = filter.p.adj)
+  if (!is.null(facet)) {
+    names(significance)[1] <- facet
+  }
+
+  if (plot.type == "boxplot"){
+    plot <- boxplot_Melanoma(data=data,diff.expr = significance, x=x, y=y,facet=facet, p.label = p.label,
+                             nrow.facet = nrow.facet,...)
+  } else if (plot.type == "dotplot"){
+    plot <- dotplot_Melanoma(data=data,diff.expr = significance, x=x, y=y,facet=facet, p.label = p.label,
+                             nrow.facet = nrow.facet,...)
+  } else {
+    stop("please specify plot type: either \"dotplot\" or \"boxplot\" ")
+  }
+
+  list(
+    stat_test_results = significance,
+    graph = plot
+  )
+}
+# ......................................................................................................................
+
+
+
+
+
+
+
+
+
+######################################################
+#                                                    #
+#               4. Machine Learning                  #
+#                                                    #
+######################################################
+
+# ......................................................................................................................
+# this function calculates cross validated AUC with 95% confidence intervals for a given caret model object #
+
+ci.cv_ROC <- function(data){
+  obs <-data$pred$obs
+  pred <- data$pred$pos
+  
+  obs <-split(obs , f = data$pred$Resample)
+  pred <-split(pred , f = data$pred$Resample)
+  
+  list(
+    cv_AUC = cvAUC(pred,obs),
+    ci.cvAUC = ci.cvAUC(pred,obs))
+}
+# ......................................................................................................................
+
+
+
+
+
+
+#....................................................................................................................
+# this function calculates the weighted importance of a model ensemble              #
+# it calculates importance for single features in each model and then combines the  #
+# results in a weighted approach by model importance in the stacked model           # 
+
+# Arguments:
+#  - models: vector with model names
+#  - dat: data
+weightedImp <- function(models, dat){
+  
+  #calculate importance
+  imp <- sapply(models,data=dat, function(names,data){
+    varImp(data$models[[names]])$importance
+  }) %>% 
+    #transform to data frame
+    as.data.frame() %>% 
+    # remove duplicate entries
+    select(-contains("neg")) %>%
+    setNames(models)
+  
+  
+  #calculate weights based on the model importance of the individual models within the ensemble
+  weights <- varImp(ensemble_3$ens_model)$importance %>%
+    select(neg) %>% 
+    mutate(neg = neg/100) %>%
+    unlist() %>%
+    setNames(models)
+  
+  #combine weights with the separate model importances
+  weighted_imp <- t(t(imp)*weights) %>% 
+    data.frame()%>%
+    rownames_to_column("Feature") %>%
+    mutate(overall = rowSums(.[,-1])) %>% 
+    mutate(percent = overall/sum(overall)*100) %>%
+    mutate(scaled = percent/max(percent)*100) %>%
+    select(c(Feature, scaled)) %>%
+    arrange((scaled)) %>% 
+    mutate(Feature = str_replace_all(.$Feature,"X","")) %>% 
+    mutate(Feature = str_replace_all(.$Feature,"hsa","")) %>% 
+    mutate(Feature = str_replace_all(.$Feature,"\\.\\.","")) %>%
+    mutate(Feature = str_replace_all(.$Feature,"\\.$","")) %>%
+    mutate(Feature = str_replace_all(.$Feature,"\\.","-")) 
+  
+  return(weighted_imp)
+}
+
+
+
+
+
+
+## plot for exosome data
+ggexosome <- function(data,
+                      x,
+                      y,
+                      group = "response",
+                      size = 1.7,
+                      se = F,
+                      method = "glm",
+                      fullrange = T
+){
+  dat <- data
+  dat %>%
+    ggplot(
+      aes_string(x=x,y=y,shape = group, color = group, lty = group)
+    ) +
+    geom_point(size=size) +
+    geom_smooth(method = method, se = se, fullrange=fullrange) +
+    theme_Melanoma() +
+    theme(legend.key.size = unit(3,"line"),
+          legend.title = element_blank())+
+    scale_color_Melanoma()
+    
+}
+
+
+### 
+ggexosome2 <- function(data,x,y,facet.by=NULL,col,  method = "t.test"){
+  data %>%  filter(!is.na(!!sym(x))) %>%
+    ggboxplot(x,y, facet.by = facet.by, 
+              ylab = y, 
+              add = "jitter",
+              add.params = list(color = col),
+              outlier.shape = NA, 
+              ) +
+    stat_compare_means(method = method) +
+    ylim(min(data[y])/1.1, max(data[y])*1.1)
+}
+
+# arrange a grid of plots for exosome data
+exo_arrange <- function(data,x,y,facet.by,col="black", ylab){
+  p1 <- ggexosome2(data, x,y[[1]],facet.by,col) + ylab(ylab[[1]])
+  p2 <- ggexosome2(data, x,y[[2]],facet.by,col) + ylab(ylab[[2]])
+  p3 <- ggexosome2(data,x,y[[3]], facet.by,col) + ylab(ylab[[3]])
+  ggarrange(p1,p2,p3,nrow=1)
+}
+
+
+
+# function to display p-values in table1
+rndr <- function(x, name, ...) {
+  if (length(x) == 0) {
+    y <- dat_table1[[name]] 
+    ind <- !is.na(y)
+    y <- y[ind]
+    s <- rep("", length(render.default(x=y, name=name, ...)))
+    if (is.numeric(y)) {
+      p <- t.test(y ~ dat_table1$Responder[ind])$p.value
+    } else {
+      p <- chisq.test(table(y, droplevels(dat_table1$Responder[ind])))$p.value
+    }
+    s[2] <- sub("<", "&lt;", format.pval(p, digits=3, eps=0.001))
+    s
+  } else {
+    render.default(x=x, name=name, ...)
+  }
+}
+
+rndr.strat <- function(label, n, ...) {
+  ifelse(n==0, label, render.strat.default(label, n, ...))
+}
+
+
+
+#....................................................................................................................
+## function to calculate AUC, sens and spec for training and test set and extract model coefficients from a model if applicable
+## x = model matrix with predictors
+## y = response variable as factor
+## method = method used for cross validation
+## number = number of folds if k-fold cv used
+## reapeats = number of repeats if repeatedcv used
+## train.method = model method used in caret::train function
+## metric = metric used to assess model quality
+## tuneGrid = grid with hyperparameters to be tuned
+
+calc.model.metrics <- function(x.train, y.train,train.method = "glmnet", cv.method = "repeatedcv", number = 10, repeats = 5, metric = "ROC", tuneGrid){
+  # define ctrl function
+  cctrl1 <- trainControl(method=cv.method, number=number,repeats = repeats, returnResamp="all", 
+                         classProbs=TRUE, summaryFunction=twoClassSummary)
+  
+  # run glmnet model
+  set.seed(849)
+  md <- train(x.train, y.train, method = train.method,preProcess = c("center","scale"),
+              trControl = cctrl1,metric = metric,tuneGrid = tuneGrid)
+  # train coefs
+  feat <- coef(md$finalModel, md$finalModel$lambdaOpt)
+  
+  # obtain index from max metric
+  opt <- md$results[which(md$results$lambda == md$finalModel$lambdaOpt),]
+  
+  # predict
+  pred <- predict(md, x.test, type="raw")
+  
+  # object to return
+  res <- list(
+    coefficients = rownames_to_column(data.frame(vals = feat[feat[,1] != 0, 1][-1]),"coefs"),
+    train.metrics = opt[which(opt$ROC == max(opt$ROC)),],
+    test.metrics = data.frame(AUC = auc(roc(y.test, predict(md, x.test, type="prob")[,1])),
+                              Sens = sensitivity(y.test, pred)  ,
+                              Spec = specificity(y.test, pred))
+  )
+  
+  ifelse(!identical(select(res$train.metrics, -c(ROC, Sens, Spec, ROCSD, SensSD, SpecSD)), md$bestTune), 
+         stop("The tuning parameters used to extract AUC do not match the tuning parameters returned by 'best tune'"), 
+         return(res))  
+}

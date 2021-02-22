@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1613735737799.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2242223050",
+    "id" : "CEEAE9DB",
+    "lastKnownWriteTime" : 1613991754,
+    "last_content_update" : 1613991754538,
+    "path" : "Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Github/MelanomaStudy/glm_model.R",
+    "project_path" : "glm_model.R",
+    "properties" : {
+        "cursorPosition" : "219,0",
+        "scrollLine" : "200"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -22,11 +22,259 @@ library(cvAUC)
 library(devtools)
 library(cutpointr)
 
+# functions used 
+#....................................................................................................................
+# this function calculates accuracy, F1, spec, sens,... for the Folds    #
+# within cross validation using the resamples with the optimal tuning    #
+# parameters
+
+cv_res <- function(modelNames){
+  
+  # show ROC of models
+  model_results <- lapply(names(modelNames), function(x){
+    modelNames[[x]]$results %>%
+      filter(ROC == max(ROC)) %>%
+      select(c(ROC, Sens, Spec)) %>% .[1,]
+  }) 
+  
+  model_results <- do.call(rbind.data.frame, model_results) 
+  
+  
+  ## extract those resample with the optimal tuning parameters from the model list for each model
+  model_best_tune <- lapply(names(modelNames), function(x){
+    tmp <- modelNames[[x]]$pred
+    
+    for (i in 1:length(modelNames[[x]]$bestTune)){
+      tmp   <- tmp %>%
+        filter(!!sym(names(modelNames[[x]]$bestTune)[i]) == unlist(modelNames[[x]]$bestTune[i]))
+    }
+    
+    return(tmp)
+  })
+  
+  
+  # calculate accuracy, sensitivity and so on for the cross validated models 
+  cv_results  <- sapply(1:length(modelNames), function(y){
+    
+    resamples <- modelNames[[1]]$pred$Resample %>% unique()
+    
+    sapply(resamples, function(x){
+      tmp_res <- model_best_tune[[y]] %>%
+        filter(Resample == x)
+      
+      conf_mat <- confusionMatrix(tmp_res$pred, tmp_res$obs)
+      conf_mat$byClass
+    }) %>%
+      t() %>%
+      data.frame() %>%
+      summarize_all(mean, na.rm =T)
+  })%>%
+    data.frame() %>%
+    setNames(names(modelNames)) %>%
+    t()
+  
+  cbind(ROC = model_results$ROC,cv_results)
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#....................................................................................................................
+# this function averages results from cv_res function for different Seeds    #
+modelSeed_meanSD <- function(y){
+  model_metrics <- lapply(1:length(y), function(x){
+    cv_res(y[[x]])
+  })
+  
+  metricList <- lapply(names(y[[1]]),function(modelName){
+    tmp <- do.call(rbind, model_metrics) %>%
+      data.frame() %>%
+      rownames_to_column("model")%>%
+      filter(str_detect(model, modelName)) %>%
+      select(-model) %>%
+      mutate_all(as.numeric) 
+    
+    tmp_mean <- tmp %>%
+      summarize_all(mean)
+    tmp_sd <- tmp %>%
+      summarize_all(sd)
+    
+    
+    data.frame(mean = t(tmp_mean), sd = t(tmp_sd)) %>%
+      rownames_to_column("metric") %>%
+      mutate(error = qt(0.975, length(y) -1)*sd/sqrt(length(y)),
+             lower = mean - error,
+             upper = mean + error) %>%
+      column_to_rownames("metric")
+  })
+  
+  names(metricList) <- names(y[[1]])
+  return(metricList)
+}
+
+
+
+
+
+#....................................................................................................................
+# calculate model metrics 
+calcTestMetrics <- function(data, models){
+  metricList_test <- lapply(models,function(x){
+    tmp <- do.call(rbind, data) %>%
+      data.frame() %>%
+      rownames_to_column("model")%>%
+      filter(str_detect(model, x)) %>%
+      select(-model) %>%
+      mutate_all(as.numeric) 
+    
+    tmp_mean <- tmp %>%
+      summarize_all(mean)
+    tmp_sd <- tmp %>%
+      summarize_all(sd)
+    
+    n <- length(names(model_list[[1]]))
+    
+    data.frame(mean = t(tmp_mean), sd = t(tmp_sd)) %>%
+      rownames_to_column("metric") %>%
+      mutate(error = qt(0.975,n-1)*sd/sqrt(n),
+             lower = mean - error,
+             upper = mean + error) %>%
+      column_to_rownames("metric")
+  })
+  
+  names(metricList_test) <- names(model_list[[1]])
+  return(metricList_test)
+}
+
+
+
+
+
+#....................................................................................................................
+# function to combine predicted values with real values from a list
+# x: name of list element
+# model: name of model
+predictList <- function(x,model){
+  data.frame(Sample = x,
+             Responder = predict.train(model_list[[x]][[model]], newdata = dat_split[[x]]$testing,type="prob"),
+             RealClass = dat_split[[x]]$testing$Responder) 
+}
+
+
+
+#....................................................................................................................
+# function to calculate TPR and FPR for different cutoffs averaged over a distinct number of samples defined by "supgroup"
+# x: predicted values
+# class: class containing real values
+mean_roc <- function(data, cutoffs = seq(from = 0, to = 1, by = 0.1)) {
+  map_df(cutoffs, function(cp) {
+    out <- cutpointr(data = data, x = PredictionValues, class = RealClass,
+                     subgroup = Sample, method = oc_manual, cutpoint = cp,
+                     pos_class = "neg", direction = ">=")
+    data.frame(cutoff = cp, 
+               sensitivity = mean(out$sensitivity),
+               specificity = mean(out$specificity))
+  })
+}
+
+
+
+
+
+
+#....................................................................................................................
+# function to calculate AUC using predicted and observed values
+# probs: predicted values (probabilities)
+# true_Y: observed values
+getROC_AUC <- function(probs, true_Y){
+  probsSort <- sort(probs, decreasing = TRUE, index.return = TRUE)
+  val <- unlist(probsSort$x)
+  idx <- unlist(probsSort$ix)  
+  
+  roc_y <- true_Y[idx];
+  stack_x <- cumsum(roc_y == "pos")/sum(roc_y == "pos")
+  stack_y <- cumsum(roc_y == "neg")/sum(roc_y == "neg")    
+  
+  auc <- sum((stack_x[2:length(roc_y)]-stack_x[1:length(roc_y)-1])*stack_y[2:length(roc_y)])
+  return(list(stack_x=stack_x, stack_y=stack_y, auc=auc))
+}
+
+
+
+
+
+
+
+
+#....................................................................................................................
+# function to calculate the average AUC of multiple ROC models
+# samples: number of different models
+mean_AUC <- function(data,samples){
+  tmp <- sapply(samples, function(x){
+    dat <- data %>% 
+      filter(Sample == x)
+    getROC_AUC(dat$PredictionValues, dat$RealClass) %>%
+      .$auc
+  }) 
+  data.frame(mean.auc = mean(tmp),
+             error = confInt(tmp)) %>%
+    mutate(lower = mean.auc- error, 
+           upper = mean.auc+error)
+  
+}
+
+
+
+
+
+
+
+
+
+#....................................................................................................................
+# function to combine predictions from different models (generated by different seeds) within a list
+# out object gives the predictions table, ROC and AUC 
+pred_summary <-function(model, list.element = 1:length(n)){
+  pred <- map_df(list.element,model = model, predictList) %>% 
+    select(-Responder.pos) %>%
+    setNames(c("Sample","PredictionValues", "RealClass"))
+  mr <- mean_roc(pred)
+  ma <- mean_AUC(pred, list.element)
+  list(predictions = pred,
+       ROC = mr,
+       AUC = ma
+  )
+}
+
+
+
+#....................................................................................................................
+# load saved models
+loadModels <- function(model){
+  if(model == "M1"){
+    readRDS(file = "model_base_seeds.Rds")
+  } else if(model == "M2") {
+    readRDS(file = "model_miR_seeds.Rds")
+  } else if(model == "M3") {
+    readRDS(file = "model_best_perf_seeds.Rds")
+  } else {
+    stop("Please specify model (one of M1 (base model), M2 (miR model), M3 (best performing model))")
+  }
+}
 
 # set working directory
 setwd("Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Projekte/Doktorarbeiten_Melanom_Liquid_Biopsies/Daten")
 
-# Für Veröffentlichung Worklfow gut darstellen (Bhalla et al. prediction  and Analysis of Skin Cancer Progression using Genomics Profiles of Patients)
+# F?r Ver?ffentlichung Worklfow gut darstellen (Bhalla et al. prediction  and Analysis of Skin Cancer Progression using Genomics Profiles of Patients)
 # verschiedene Algorithmen darstellen und vergleichen, verschiedene Feature selection Methoden vergleichen 
 # (nur signifikante, RFE, nur signifikante ohne high correlated)
 
@@ -135,7 +383,7 @@ dat_model <- dat_signif %>%
 
 # die 3 transformierten Variablen zeigen durch Transformation eine deutlich bessere Approximation an die Normalverteilung
 # Die Verteilung von miR-29b ist schon untransformatiert sehr nah an einer Normalverteilung 
-# Die Transformation von LDH und S100 ändert nicht viel an der "Normalität" der Verteilung
+# Die Transformation von LDH und S100 ?ndert nicht viel an der "Normalit?t" der Verteilung
 # -> Model einmal mit log-transformierten und einmal mit untransformierten LDH,S100, miR-29b gefittet
 # -> besseres Ergebnis wenn LDH und S100 nicht transformiert werden
 

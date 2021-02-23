@@ -225,8 +225,9 @@ df.test <- do.call(rbind.data.frame, sapply(test, '[', 'test.metrics'))
 df.test %>% summarize(mean = mean(AUC), meanSens = mean(Sens), meanSpec = mean(Spec))
 
 
-
-
+## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7565855/
+## Modelling Process angucken
+## calibration curve
 
 
 

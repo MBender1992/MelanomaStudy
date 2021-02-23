@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "2526892244",
+    "hash" : "3377698438",
     "id" : "CEEAE9DB",
-    "lastKnownWriteTime" : 1614009374,
-    "last_content_update" : 1614009374171,
+    "lastKnownWriteTime" : 1614082123,
+    "last_content_update" : 1614082124392,
     "path" : "Z:/Aktuell/Eigene Dateien/Eigene Dateien_Marc/R/Github/MelanomaStudy/glm_model.R",
     "project_path" : "glm_model.R",
     "properties" : {
-        "cursorPosition" : "215,0",
-        "scrollLine" : "186"
+        "cursorPosition" : "229,20",
+        "scrollLine" : "206"
     },
     "read_only" : false,
     "read_only_alternatives" : [

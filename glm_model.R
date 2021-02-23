@@ -7,6 +7,7 @@ library(devtools)
 library(caret)
 library(doParallel)
 library(pROC)
+library(pbapply)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -194,35 +195,77 @@ cl <- makeCluster(detectCores(), type='PSOCK')
 registerDoParallel(cl)
 
 # generate 5 folds for outer loop
+
+rep <- 5
+k <- 10
 set.seed(12)
-fold.train <- createFolds(y, k = 5) # ensure that at least 10 samples are in each fold
+fold.train <- createMultiFolds(y, k = k, times = rep) # ensure that at least 10 samples are in each fold
+
 
 # split data based on these folds (Fold1 means that Fold1 is used for testing)
-train.test.folds <- lapply(c(1:length(fold.train)), function(split){
-  list(x.test = x[fold.train[[split]],], 
-       x.train = x[-fold.train[[split]],],
-       y.test = y[fold.train[[split]]],
-       y.train = y[-fold.train[[split]]] 
-  )
+train.test.folds <- lapply(c(1:rep), function(split){
+  
+  ind <- names(fold.train) %>% str_detect(paste("Rep",split, sep =""))
+  dat <- fold.train[ind]
+  
+  res <- lapply(c(1:k), function(fold){
+    list(x.test = x[-dat[[fold]],], 
+         x.train = x[dat[[fold]],],
+         y.test = y[-dat[[fold]]],
+         y.train = y[dat[[fold]]] 
+    )
+    return(res)
+  })
+  
 })
 
-# set names
-names(train.test.folds) <- c("Fold1", "Fold2", "Fold3", "Fold4", "Fold5")
 
-models <- lapply(1:length(train.test.folds), function(fold){
-  calc.model.metrics(train.test.folds[[fold]]$x.train, y = train.test.folds[[fold]]$y.train, train.method = "glmnet",  tuneGrid = expand.grid(alpha = seq(0,1,0.1), lambda = seq(0.01,0.2,by = 0.01)))
+
+# define name of the list elements
+reps <- paste0("Rep", 1:rep)
+folds <- paste0("Fold", 1:k)
+train.test.folds <- setNames(lapply(train.test.folds, setNames, folds), reps)
+
+
+models.lasso <-lapply(c(1:rep), function(split){
+  
+  # select Data from 1 repeat
+  dat <- train.test.folds[[paste("Rep",split, sep ="")]]
+  message(paste("Starting calculation of Rep", split,"... of", rep))
+  # apply model to all folds of that 1 repeat and test against the remaining fold not used for training
+  res <- pblapply(c(1:k), function(fold){
+  
+  calc.model.metrics.2(dat[[fold]]$x.train, y = dat[[fold]]$y.train, train.method = "glmnet",
+                       tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+        })
+  return(res)
 })
 
+# model trained with elastic net
+models.eNet 
+models.lasso
 
-
+models.test <- 
+# set names of list elements
+models.test <- setNames(lapply(models.test, setNames, folds), reps)
 
 # extract train metrics from list and convert to data.frame
-df.train <- do.call(rbind.data.frame, sapply(test, '[', 'train.metrics')) 
+df.train <- lapply(1:rep, function(split){
+    do.call(rbind.data.frame, sapply(models.test[[split]], '[', 'train.metrics')) %>% 
+    summarize(mean = mean(ROC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec)) 
+    }) 
 
-df.test <- do.call(rbind.data.frame, sapply(test, '[', 'test.metrics')) 
+# 
+df.test <- lapply(1:rep, function(split){
+  do.call(rbind.data.frame, sapply(models.test[[split]], '[', 'test.metrics')) %>%
+  summarize(mean = mean(AUC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec))
+}) 
 
 
-df.test %>% summarize(mean = mean(AUC), meanSens = mean(Sens), meanSpec = mean(Spec))
+##
+## An Analysis on Better Testing than Training Performances on the Iris Dataset
+
+
 
 
 ## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7565855/

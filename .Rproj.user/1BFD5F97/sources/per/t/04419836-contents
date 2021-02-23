@@ -6,6 +6,8 @@ library(tidyverse)
 library(devtools)
 library(caret)
 library(doParallel)
+library(pROC)
+library(pbapply)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -99,17 +101,17 @@ dat_fct$S100 <- dat_imp$S100
 set.seed(123)
 ind.train <- createDataPartition(dat_fct$Responder, p = 0.7, list = FALSE)
 
-train.data  <- dat_fct[ind.train, ] # n = 43
-test.data <- dat_fct[-ind.train, ] # n = 18
+train.EDA  <- dat_fct[ind.train, ] # n = 43
+test.EDA <- dat_fct[-ind.train, ] # n = 18
 
 #####################################
 ##
-##  2.a EDA on training set
+##  2.a EDA on training set (to avoid drawing conclusions including the test set)
 ##
 #####################################
 
 # change data structure for ggplot
-dat_miR <- train.data %>% 
+dat_miR <- train.EDA %>% 
   select(contains("mir")) %>% 
   gather("miRNA", "expression")
 
@@ -162,30 +164,22 @@ hist(log(train.data$CRP))
 
 ## lab parameters were also used in log-transformed space
 
-# transform training data
-tmp.train <- train.data %>% select(where(is.numeric)) 
-fctrs <- train.data %>% select(!where(is.numeric))
-train <- data.frame(cbind(log(tmp.train  + 1), fctrs))
-
-# transform testing data
-tmp.test  <- test.data %>% select(where(is.numeric))
-fctrs <- test.data %>% select(!where(is.numeric))
-test <- data.frame(cbind(log(tmp.test  + 1), fctrs))
-
-
 #####################################
 ##
-## 2.b conversion of factors to dummy variables
+## 2.b log-transformation and conversion of factors to dummy variables
 ##
 #####################################
 
-# dummy encoding of factors with model.matrix
-x.train <- model.matrix(Responder~.,data=train)[,-1] 
-y.train <- train$Responder
+# transform the whole dataset
+tmp <- dat_fct %>% select(where(is.numeric))
+fctrs <- dat_fct %>% select(!where(is.numeric))
+dat_log <- data.frame(cbind(log(tmp+1), fctrs))
 
-# dummy encoding of factors with model.matrix for test set
-x.test <- model.matrix(Responder~.,data=test)[,-1] 
-y.test <- test$Responder
+# dummy encoding of factors with model matrix except for response variable
+x <- model.matrix(Responder~., data = dat_log)[,-1]
+y <- dat_log$Responder
+
+
 
 
 
@@ -196,49 +190,124 @@ y.test <- test$Responder
 ##
 #####################################
 
-# nested cv??
-# https://stackoverflow.com/questions/62276400/how-to-do-nested-cross-validation-with-lasso-in-caret-or-tidymodels
-# https://www.tidymodels.org/learn/work/nested-resampling/
-# https://stats.stackexchange.com/questions/65128/nested-cross-validation-for-model-selection
-
 # activate parallel computing
 cl <- makeCluster(detectCores(), type='PSOCK')
 registerDoParallel(cl)
 
-# define ctrl function
-cctrl1 <- trainControl(method="repeatedcv", number=10,repeats = 5, returnResamp="all", 
-                       classProbs=TRUE, summaryFunction=twoClassSummary)
+# generate 5 folds for outer loop
 
-# run glmnet model
-set.seed(849)
-md <- train(x.train, y.train, method = "glmnet",preProcess = c("center","scale"),
-            trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,0.1),
-                                                                     lambda = seq(0.001,0.2,by = 0.001)))
-
-max(md$results$ROC)
-coef(md$finalModel, md$finalModel$lambdaOpt)
+rep <- 5
+k <- 10
+set.seed(12)
+fold.train <- createMultiFolds(y, k = k, times = rep) # ensure that at least 10 samples are in each fold
 
 
+# split data based on these folds (Fold1 means that Fold1 is used for testing)
+train.test.folds <- lapply(c(1:rep), function(split){
+  
+  ind <- names(fold.train) %>% str_detect(paste("Rep",split, sep =""))
+  dat <- fold.train[ind]
+  
+  res <- lapply(c(1:k), function(fold){
+    list(x.test = x[-dat[[fold]],], 
+         x.train = x[dat[[fold]],],
+         y.test = y[-dat[[fold]]],
+         y.train = y[dat[[fold]]] 
+    )
+    return(res)
+  })
+  
+})
+
+
+
+# define name of the list elements
+reps <- paste0("Rep", 1:rep)
+folds <- paste0("Fold", 1:k)
+train.test.folds <- setNames(lapply(train.test.folds, setNames, folds), reps)
+
+
+models.lasso <-lapply(c(1:rep), function(split){
+  
+  # select Data from 1 repeat
+  dat <- train.test.folds[[paste("Rep",split, sep ="")]]
+  message(paste("Starting calculation of Rep", split,"... of", rep))
+  # apply model to all folds of that 1 repeat and test against the remaining fold not used for training
+  res <- pblapply(c(1:k), function(fold){
+  
+  calc.model.metrics.2(dat[[fold]]$x.train, y = dat[[fold]]$y.train, train.method = "glmnet",
+                       tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+        })
+  return(res)
+})
+
+# model trained with elastic net
+models.eNet 
+models.lasso
+
+models.test <- 
+# set names of list elements
+models.test <- setNames(lapply(models.test, setNames, folds), reps)
+
+# extract train metrics from list and convert to data.frame
+df.train <- lapply(1:rep, function(split){
+    do.call(rbind.data.frame, sapply(models.test[[split]], '[', 'train.metrics')) %>% 
+    summarize(mean = mean(ROC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec)) 
+    }) 
+
+# 
+df.test <- lapply(1:rep, function(split){
+  do.call(rbind.data.frame, sapply(models.test[[split]], '[', 'test.metrics')) %>%
+  summarize(mean = mean(AUC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec))
+}) 
+
+
+##
+## An Analysis on Better Testing than Training Performances on the Iris Dataset
 
 
 
 
-# bootstrap optimized auc
-library(nlpred)
-x <- model.matrix(Responder~.,data=dat_fct)[,-1] 
-y <- ifelse(dat_fct$Responder == "ja", 1,0)
-boot_auc(y, x, B = 10, learner = "glm_wrapper")
+## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7565855/
+## Modelling Process angucken
+## calibration curve
 
 
 
-pred <- md %>% predict(x.test, type = "prob")
-obs <- y.test
-library(pROC)
-roc_obj <- roc(obs, pred$ja)
-auc(roc_obj)
+
+
+
+
+
+
+
+library(DescTools)
+BrierScore(ifelse(y.test=="ja",1,0), pred[,1])
+
+p <- table(y)[1]/(table(y)[1] +table(y)[2])
+p*(1-p)
+
+
+
+
+
+
+
+
+y <- do.call(rbind.data.frame,
+             lapply(1:3,
+                    function(i){
+                      a <- i ;
+                      return(a)}))
+
+
 
 # cross validation to find the optimal parameters for elastic net regression
 
+# nested cv??
+# https://stackoverflow.com/questions/62276400/how-to-do-nested-cross-validation-with-lasso-in-caret-or-tidymodels
+# https://www.tidymodels.org/learn/work/nested-resampling/
+# https://stats.stackexchange.com/questions/65128/nested-cross-validation-for-model-selection
 
 # internal validation via bootstrap optimism? https://stats.stackexchange.com/questions/103411/internal-validation-via-bootstrap-what-roc-curve-to-present
 # https://stats.stackexchange.com/questions/61344/getting-the-bootstrap-validated-auc-in-r
@@ -282,6 +351,19 @@ auc(roc_obj)
 # vorher Gedanken machen ob logarithmieren oder nicht
 
 
+# bootstrap optimized auc
+library(nlpred)
+x <- model.matrix(Responder~.,data=dat_fct)[,-1] 
+y <- ifelse(dat_fct$Responder == "ja", 1,0)
+boot_auc(y, x, B = 10, learner = "glm_wrapper")
+
+
+
+pred <- md %>% predict(x.test, type = "prob")
+obs <- y.test
+library(pROC)
+roc_obj <- roc(obs, pred$ja)
+auc(roc_obj)
 
 
 library(glmnet)

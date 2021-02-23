@@ -214,9 +214,9 @@ train.test.folds <- lapply(c(1:rep), function(split){
          y.test = y[-dat[[fold]]],
          y.train = y[dat[[fold]]] 
     )
-    return(res)
+    
   })
-  
+  return(res)
 })
 
 
@@ -226,7 +226,7 @@ reps <- paste0("Rep", 1:rep)
 folds <- paste0("Fold", 1:k)
 train.test.folds <- setNames(lapply(train.test.folds, setNames, folds), reps)
 
-
+set.seed(849)
 models.lasso <-lapply(c(1:rep), function(split){
   
   # select Data from 1 repeat
@@ -245,7 +245,8 @@ models.lasso <-lapply(c(1:rep), function(split){
 models.eNet 
 models.lasso
 
-models.test <- 
+# models.test <- models.lasso
+
 # set names of list elements
 models.test <- setNames(lapply(models.test, setNames, folds), reps)
 
@@ -425,23 +426,54 @@ x <- model.matrix(Responder ~.,data=dat3)
 x <- x[,-1]
 
 set.seed(849)
-test_class_cv_model <- train(x, dat3$Responder, method = "glmnet", 
+test_class_cv_model <- train(x, y, method = "glmnet", 
                              trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,0.1),
                                                                                       lambda = seq(0.001,0.2,by = 0.001)))
+pred <- predict(test_class_cv_model, type = "prob")
+obs <- y
+roc_obj <- roc(obs, pred$ja)
+auc(roc_obj)
+
+
+
+
 coef(test_class_cv_model$finalModel, test_class_cv_model$finalModel$lambdaOpt)
 
 
 
+set.seed(3)
+fold.train <- createDataPartition(y,p = 0.9, times = 1)
+
+x.train <- x[fold.train$Resample1,]
+x.test <- x[-fold.train$Resample1,]
+y.train <- y[fold.train$Resample1]
+y.test <- y[-fold.train$Resample1]
 
 
+set.seed(849)
+test_class_cv_model <- train(x.train, y.train, method = "glmnet", 
+                             trControl = cctrl1,metric = "ROC",tuneGrid = expand.grid(alpha = seq(0,1,0.1),
+                                                                                      lambda = seq(0.001,0.2,by = 0.001)))
+test_class_cv_model$results$ROC %>% max()
 
+
+pred <- predict(test_class_cv_model, x.test, type = "prob")
+obs <- y.test
+roc_obj <- roc(obs, pred$ja)
+auc(roc_obj)
+
+
+pred <- predict(test_class_cv_model, type = "prob")
+obs <- y.train
+roc_obj <- roc(obs, pred$ja)
+auc(roc_obj)
 
 
 x <- model.matrix(as.formula(paste("Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`")),data=dat3)
 x <- x[,-1]
 
 set.seed(849)
-test_class_cv_model <- train(x, dat3$Responder, method = "xgbTree", 
+test_class_cv_model <- train(x, y, method = "xgbTree", 
                              trControl = cctrl1,metric = "ROC")
 
 

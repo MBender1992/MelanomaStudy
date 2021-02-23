@@ -966,7 +966,6 @@ calc.model.metrics.2 <- function(x.train, y.train,train.method = "glmnet", cv.me
                          classProbs=TRUE, summaryFunction=twoClassSummary)
   
   # run glmnet model
-  set.seed(849)
   md <- train(x.train, y.train, method = train.method,preProcess = c("center","scale"),
               trControl = cctrl1,metric = metric,tuneGrid = tuneGrid)
   # train coefs

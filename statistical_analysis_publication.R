@@ -109,10 +109,6 @@ png("miRNAs.png", units="in", width=5.5, height=4, res=1200)
 plot_miRNA$graph
 dev.off()
 
-
-
-
-
-
-
-
+#
+# res.signif <- str_replace_all(c(plot_miRNA$stat_test_results$miRNA,plot_serum_markers$stat_test_results$serum_marker),"-",".")
+# saveRDS(res.signif, "significant_features.rds")

@@ -3,7 +3,7 @@
     "path": "C:/MBender/Arbeit/Github/MelanomaStudy/glm_model.R",
     "project_path": "glm_model.R",
     "type": "r_source",
-    "hash": "1273918842",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1613658653731.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "262,3",
-        "scrollLine": "243"
+        "cursorPosition": "396,26",
+        "scrollLine": "371"
     },
     "folds": "",
-    "lastKnownWriteTime": 1614108002,
+    "lastKnownWriteTime": 1614178492,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1614108002939,
+    "last_content_update": 1614178492,
     "read_only": false,
     "read_only_alternatives": []
 }

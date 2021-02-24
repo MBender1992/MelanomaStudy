@@ -218,6 +218,9 @@ Glm modeling mit glm und Koeffizienten oder glmnet?
 
 Explanation of Ridge, Lasso and Elastic Net Regularization
 
+relaxed Lasso: Meinshausen 2007
+
+https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
 
 Using nested cv as it closely resembles test on independent validation set (https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-7-91)
 

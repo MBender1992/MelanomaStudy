@@ -272,7 +272,7 @@ df.test <- lapply(1:rep, function(split){
 
 # extract important coefficients
 extract.coefs <-lapply(1:10, function(x){
-  tmp <- sapply(sapply(models.lasso.complete[[1]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
+  tmp <- sapply(sapply(models.lasso.complete[[x]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
   data.frame(coef = tmp) 
 }) %>% do.call(rbind,.) %>% table() 
 
@@ -376,7 +376,7 @@ df.test <- lapply(1:rep, function(split){
 
 # extract important coefficients
 extract.coefs <-lapply(1:10, function(x){
-  tmp <- sapply(sapply(models.lasso.baseline[[1]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
+  tmp <- sapply(sapply(models.lasso.baseline[[x]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
   data.frame(coef = tmp) 
 }) %>% do.call(rbind,.) %>% table() 
 
@@ -483,7 +483,7 @@ df.test <- lapply(1:rep, function(split){
 
 # extract important coefficients
 extract.coefs <-lapply(1:10, function(x){
-  tmp <- sapply(sapply(models.lasso.signif[[1]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
+  tmp <- sapply(sapply(models.lasso.signif[[x]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
   data.frame(coef = tmp) 
 }) %>% do.call(rbind,.) %>% table() 
 
@@ -523,7 +523,7 @@ x <- model.matrix.subset("miRNA", data = dat_log)
 cl <- makeCluster(detectCores(), type='PSOCK')
 registerDoParallel(cl)
 
-# generate 5 folds for outer loop
+# generate 10 folds for outer loop
 
 rep <- 10
 k <- 10
@@ -591,7 +591,7 @@ df.test <- lapply(1:rep, function(split){
 
 # extract important coefficients
 extract.coefs <-lapply(1:10, function(x){
-  tmp <- sapply(sapply(models.lasso.miRNA[[1]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
+  tmp <- sapply(sapply(models.lasso.miRNA[[x]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
   data.frame(coef = tmp) 
 }) %>% do.call(rbind,.) %>% table() 
 

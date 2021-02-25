@@ -230,7 +230,7 @@ two_by_two_Responder <- function(data,dependent.var,independent.var, dep.var.yes
 #  - axis.text.size: Size of the axes                           #
 #  - Legend: logical indicating if legend should be printed     #
 theme_Melanoma <- function(axis.text.size=10, Legend = TRUE,...){
-  
+  require(ggpubr)
   theme_custom <- theme_pubr()+
     theme(axis.title.x=element_text(face = "bold", size = axis.text.size+1),
           axis.text.x = element_text(face = "bold", size=axis.text.size),
@@ -551,17 +551,17 @@ signif_plot_Melanoma <- function(data, x, y, signif=1, method="t.test",p.adj = "
 
 # ......................................................................................................................
 # this function calculates cross validated AUC with 95% confidence intervals for a given caret model object #
-
-ci.cv_ROC <- function(data){
-  obs <-data$pred$obs
-  pred <- data$pred$pos
+ci.cv.ROC.lasso <- function(data){
+  require(cvAUC)
+  dat <- filter(data$pred, lambda == data$finalModel$lambdaOpt)
   
-  obs <-split(obs , f = data$pred$Resample)
-  pred <-split(pred , f = data$pred$Resample)
+  obs <-dat$obs
+  pred <- dat$nein
   
-  list(
-    cv_AUC = cvAUC(pred,obs),
-    ci.cvAUC = ci.cvAUC(pred,obs))
+  obs <-split(obs , f = dat$Resample)
+  pred <-split(pred , f = dat$Resample)
+  
+  ci.cvAUC(pred,obs)
 }
 # ......................................................................................................................
 
@@ -693,7 +693,6 @@ rndr.strat <- function(label, n, ...) {
 }
 
 
-
 #....................................................................................................................
 ## function to calculate AUC, sens and spec for training and test set and extract model coefficients from a model if applicable
 ## x = model matrix with predictors
@@ -705,15 +704,19 @@ rndr.strat <- function(label, n, ...) {
 ## metric = metric used to assess model quality
 ## tuneGrid = grid with hyperparameters to be tuned
 
-calc.model.metrics <- function(x.train, y.train,train.method = "glmnet", cv.method = "repeatedcv", number = 10, repeats = 5, metric = "ROC", tuneGrid){
+
+calc.model.metrics.2 <- function(x.train, y.train, x.test, y.test, train.method = "glmnet", cv.method = "repeatedcv", number = 10, repeats = 5, metric = "ROC", tuneGrid){
   # define ctrl function
-  cctrl1 <- trainControl(method=cv.method, number=number,repeats = repeats, returnResamp="all", 
+  cctrl1 <- trainControl(method=cv.method, number=number,repeats = repeats, returnResamp="all",
                          classProbs=TRUE, summaryFunction=twoClassSummary)
   
   # run glmnet model
-  set.seed(849)
   md <- train(x.train, y.train, method = train.method,preProcess = c("center","scale"),
               trControl = cctrl1,metric = metric,tuneGrid = tuneGrid)
+  
+  # obtain ci for cv
+  ci_cv <- ci.cv.ROC.lasso(md)
+  
   # train coefs
   feat <- coef(md$finalModel, md$finalModel$lambdaOpt)
   
@@ -727,12 +730,133 @@ calc.model.metrics <- function(x.train, y.train,train.method = "glmnet", cv.meth
   res <- list(
     coefficients = rownames_to_column(data.frame(vals = feat[feat[,1] != 0, 1][-1]),"coefs"),
     train.metrics = opt[which(opt$ROC == max(opt$ROC)),],
+    train.cv = , data.frame(cvAUC = ci_cv$cvAUC, 
+                            se = ci_cv$se,
+                            lower = ci_cv$ci[1],
+                            upper = ci_cv$ci[2]),
     test.metrics = data.frame(AUC = auc(roc(y.test, predict(md, x.test, type="prob")[,1])),
                               Sens = sensitivity(y.test, pred)  ,
                               Spec = specificity(y.test, pred))
   )
   
-  ifelse(!identical(select(res$train.metrics, -c(ROC, Sens, Spec, ROCSD, SensSD, SpecSD)), md$bestTune), 
-         stop("The tuning parameters used to extract AUC do not match the tuning parameters returned by 'best tune'"), 
-         return(res))  
+  return(res)
 }
+
+
+
+
+
+
+# function to select which columns to use for the model matrix as specified by the model argument
+model.matrix.subset <- function(model, data){
+  if(model == "complete"){
+    mm <- model.matrix(Responder~., data = data)[,-1]
+  } else if(model == "miRNA"){
+    mm <- model.matrix(Responder~., data = select(data, c(contains("mir"),Responder)))[,-1]
+  } else if(model == "baseline"){
+    mm <- model.matrix(Responder~., data = select(data, contains(c("Eosinophile","LDH","S100","CRP")),Responder))[,-1]
+  } else if(model == "signif"){
+    mm <- model.matrix(Responder~., data = select(data, contains(readRDS("significant_features.rds")),Responder))[,-1]
+  } else if(model == "relaxedLasso"){
+    mm <- model.matrix(Responder~., data = select(dat_log, c(feat.relaxed$coef,BRAF,Responder)))[,-1]
+  } else {
+    stop("Please specify 1 of the following 4 options: 
+    1. 'baseline' for a base model using conventional serum markers (LDH, CRP, S100, Eosinophile)
+    2. 'miRNA' for a model using only miRNAs (reduced by lasso to informative features) 
+    3. 'signif' for a model with significantly different features between responders and non-responders
+    4. 'complete' for a model with all predictors (reduced by lasso)
+    5. 'relaxedLasso' for a model with the best predictors selected by the 'complete' model (afterwards reduced again with LASSO)")
+  }
+  return(mm)
+}
+
+
+
+
+
+
+
+# models a function based on a presepcified model and evaluates training and test test using ROC, Sensitivity and Specificity
+lassoEval <- function(model, dat, rep, k){
+  # define model matrix with selected features
+  x <- model.matrix.subset(model, data = dat)
+  
+  # activate parallel computing
+  cl <- makeCluster(detectCores(), type='PSOCK')
+  registerDoParallel(cl)
+  
+  # generate 10 folds for outer loop
+  
+  set.seed(12)
+  fold.train <- createMultiFolds(y, k = k, times = rep) # ensure that at least 10 samples are in each fold
+  
+  # split data based on these folds (Fold1 means that Fold1 is used for testing)
+  train.test.folds <- lapply(c(1:rep), function(split){
+    
+    # select only folds containing the specified repeat in each iteration
+    if(split == 10){
+      ind <- names(fold.train) %>% str_detect("Rep10")
+      dat <- fold.train[ind]  
+    } else {
+      ind <- names(fold.train) %>% str_detect(paste("Rep0",split, sep =""))
+      dat <- fold.train[ind]
+    }
+    
+    # split data into training and test set with each fold being the test set once
+    res <- lapply(c(1:k), function(fold){
+      list(x.test = x[-dat[[fold]],], 
+           x.train = x[dat[[fold]],],
+           y.test = y[-dat[[fold]]],
+           y.train = y[dat[[fold]]] 
+      )
+    })
+    return(res)
+  })
+  
+  # define name of the list elements
+  reps <<- paste0("Rep", 1:rep)
+  folds <<- paste0("Fold", 1:k)
+  train.test.folds <- setNames(lapply(train.test.folds, setNames, folds), reps)
+  
+  set.seed(849)
+  lapply(c(1:rep), function(split){
+    # select Data from 1 repeat
+    dat <- train.test.folds[[paste("Rep",split, sep ="")]]
+    # print message to follow progress
+    message(paste("Starting calculation of Rep", split,"... of", rep))
+    # apply model to all folds of that 1 repeat and test against the remaining fold not used for training
+    res <- pblapply(c(1:k), function(fold){
+      calc.model.metrics.2(x.train = dat[[fold]]$x.train, y.train = dat[[fold]]$y.train, x.test =dat[[fold]]$x.test,
+                           y.test = dat[[fold]]$y.test, train.method = "glmnet",
+                           tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+    })
+  })
+}
+
+
+
+# convert metrics from training data list to dataframe
+trainDF <- function(data){
+  lapply(1:rep, function(split){
+    do.call(rbind.data.frame, sapply(data[[split]], '[', 'train.metrics')) %>% 
+      summarize(mean = mean(ROC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec)) 
+  }) 
+} 
+
+# convert metrics from trainingtest data list to dataframe
+testDF <- function(data){
+  lapply(1:rep, function(split){
+    do.call(rbind.data.frame, sapply(data[[split]], '[', 'test.metrics')) %>% 
+      summarize(mean = mean(AUC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec)) 
+  }) 
+} 
+
+# extract coefficients from model list 
+extractCoefs <- function(data){
+  lapply(1:10, function(x){
+    tmp <- sapply(sapply(data[[x]], '[', 'coefficients'), '[', 'coefs') %>% unlist()
+    data.frame(coef = tmp) 
+  })
+}
+  
+

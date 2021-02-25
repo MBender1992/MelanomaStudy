@@ -552,16 +552,16 @@ signif_plot_Melanoma <- function(data, x, y, signif=1, method="t.test",p.adj = "
 # ......................................................................................................................
 # this function calculates cross validated AUC with 95% confidence intervals for a given caret model object #
 ci.cv.AUC.lasso <- function(data){
-  require(cvAUC)
+  
   dat <- filter(data$pred, lambda == data$finalModel$lambdaOpt)
   
   obs <-dat$obs
-  pred <- dat$nein
+  pred <- dat$nein # as nein is used as case sample, switch to ja if factor levels are reordered
   
   obs <-split(obs , f = dat$Resample)
   pred <-split(pred , f = dat$Resample)
   
-  ci.cvAUC(pred,obs)
+  cvAUC::ci.cvAUC(pred,obs)
 }
 # ......................................................................................................................
 
@@ -776,7 +776,7 @@ model.matrix.subset <- function(model, data){
 
 
 # models a function based on a presepcified model and evaluates training and test test using ROC, Sensitivity and Specificity
-lassoEval <- function(model, dat, rep, k){
+lassoEval <- function(model, dat, rep, k, tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01))){
   # define model matrix with selected features
   x <- model.matrix.subset(model, data = dat)
   
@@ -827,7 +827,7 @@ lassoEval <- function(model, dat, rep, k){
     res <- pblapply(c(1:k), function(fold){
       calc.model.metrics.2(x.train = dat[[fold]]$x.train, y.train = dat[[fold]]$y.train, x.test =dat[[fold]]$x.test,
                            y.test = dat[[fold]]$y.test, train.method = "glmnet",
-                           tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+                           tuneGrid = tuneGrid)
     })
   })
 }

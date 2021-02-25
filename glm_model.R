@@ -194,7 +194,7 @@ y <- dat_log$Responder
 
 #####################################
 ##
-## c.1 complete model
+## c.1a complete model
 ##
 #####################################
 
@@ -209,29 +209,67 @@ models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
 # set names of list elements
 models.lasso.complete <- setNames(lapply(models.lasso.complete, setNames, folds), reps)
 
-# extract metrics for inner fold (training) and outer fold (testing) from list and convert to df
-df.train.complete <- trainDF(models.lasso.complete)
-df.test.complete <- testDF(models.lasso.complete)
+## confidence interval for the cv.train folds in the inner loop 
+ci.complete <- rbind.model.ci(models.lasso.complete)
 
 # extract important coefficients
 extract.coefs.complete <- extractCoefs(models.lasso.complete) %>% do.call(rbind,.) %>% table() 
-
 
 # calculate percentages
 feat.freq.complete <- data.frame(sort(extract.coefs.complete/100)) %>% 
   setNames(c("coef", "freq"))
 
 # plot important features
-ggplot(data = feat.freq.complete, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
-  geom_bar(stat = "identity",  color = "black") + 
-  coord_flip() +
-  xlab("") +
-  ylab("fraction of cv-models using this feature (relative feature importance)") +
-  theme_bw() +
-  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-  geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
-  scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
-  labs(fill = "frequency")
+# ggplot(data = feat.freq.complete, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
+#   geom_bar(stat = "identity",  color = "black") + 
+#   coord_flip() +
+#   xlab("") +
+#   ylab("fraction of cv-models using this feature (relative feature importance)") +
+#   theme_bw() +
+#   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
+#   labs(fill = "frequency")
+
+
+
+#####################################
+##
+## c.1b relaxed LASSO of the complete model
+##
+#####################################
+
+# obtain features for relaxed LASSO analysis (features with importance > 0.5, BRAF added manually within the function)
+feat.relaxed <-  feat.freq.complete[feat.freq.complete$freq > 0.5,]
+feat.relaxed <- feat.relaxed[feat.relaxed$coef != "BRAFpos",]
+
+# modelling and evaluation
+# models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
+# saveRDS(models.lasso.relaxedLasso, "models/models_lasso_relaxedLasso.rds")
+models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
+
+# set names of list elements
+models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames, folds), reps)
+
+## confidence interval for the cv.train folds in the inner loop 
+ci.relaxedLasso <- rbind.model.ci(models.lasso.relaxedLasso)
+
+# extract important coefficients
+extract.coefs.relaxedLasso <- extractCoefs(models.lasso.relaxedLasso) %>% do.call(rbind,.) %>% table() 
+
+# calculate percentages
+feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>% 
+  setNames(c("coef", "freq"))
+
+# plot important features
+# ggplot(data = feat.freq, aes(coef, freq)) +
+#   geom_bar(stat = "identity",  color = "black", fill = "lightblue") + 
+#   coord_flip() +
+#   xlab("") +
+#   ylab("fraction of cv-models using this feature (relative feature importance)") +
+#   theme_bw() +
+#   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") 
 
 
 
@@ -251,33 +289,27 @@ models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
 # set names of list elements
 models.lasso.baseline <- setNames(lapply(models.lasso.baseline, setNames, folds), reps)
 
-# extract metrics for inner fold (training) and outer fold (testing) from list and convert to df
-df.train.baseline <- trainDF(models.lasso.baseline)
-df.test.baseline <- testDF(models.lasso.baseline)
+## confidence interval for the cv.train folds in the inner loop 
+ci.baseline <- rbind.model.ci(models.lasso.baseline)
 
 # extract important coefficients
 extract.coefs.baseline <- extractCoefs(models.lasso.baseline) %>% do.call(rbind,.) %>% table() 
-
 
 # calculate percentages
 feat.freq <- data.frame(sort(extract.coefs.baseline/100)) %>% 
   setNames(c("coef", "freq"))
 
 # plot important features
-ggplot(data = feat.freq, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
-  geom_bar(stat = "identity",  color = "black") + 
-  coord_flip() +
-  xlab("") +
-  ylab("fraction of cv-models using this feature (relative feature importance)") +
-  theme_bw() +
-  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-  geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
-  scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
-  labs(fill = "frequency")
-
-
-
-
+# ggplot(data = feat.freq, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
+#   geom_bar(stat = "identity",  color = "black") + 
+#   coord_flip() +
+#   xlab("") +
+#   ylab("fraction of cv-models using this feature (relative feature importance)") +
+#   theme_bw() +
+#   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
+#   labs(fill = "frequency")
 
 
 
@@ -297,9 +329,8 @@ models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
 # set names of list elements
 models.lasso.signif <- setNames(lapply(models.lasso.signif, setNames, folds), reps)
 
-# extract metrics for inner fold (training) and outer fold (testing) from list and convert to df
-df.train.signif <- trainDF(models.lasso.signif)
-df.test.signif <- testDF(models.lasso.signif)
+## confidence interval for the cv.train folds in the inner loop 
+ci.signif <- rbind.model.ci(models.lasso.signif)
 
 # extract important coefficients
 extract.coefs.signif <- extractCoefs(models.lasso.signif) %>% do.call(rbind,.) %>% table() 
@@ -310,15 +341,15 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
   setNames(c("coef", "freq"))
 
 # plot important features
-ggplot(data = feat.freq, aes(coef, freq)) +
-  geom_bar(stat = "identity",  color = "black", fill = "lightblue") + 
-  coord_flip() +
-  xlab("") +
-  ylab("fraction of cv-models using this feature (relative feature importance)") +
-  theme_bw() +
-  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-  geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
-  labs(fill = "frequency")
+# ggplot(data = feat.freq, aes(coef, freq)) +
+#   geom_bar(stat = "identity",  color = "black", fill = "lightblue") + 
+#   coord_flip() +
+#   xlab("") +
+#   ylab("fraction of cv-models using this feature (relative feature importance)") +
+#   theme_bw() +
+#   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   labs(fill = "frequency")
 
 
 
@@ -329,169 +360,120 @@ ggplot(data = feat.freq, aes(coef, freq)) +
 
 #####################################
 ##
-## c.4 miRNA
+## c.4a miRNA
 ##
 #####################################
 
 #
 # models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = 10, k = 10)
 # saveRDS(models.lasso.miRNA, "models/models_lasso_miRNA.rds")
-# models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
+models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
 
 # set names of list elements
 models.lasso.miRNA <- setNames(lapply(models.lasso.miRNA, setNames, folds), reps)
 
-# extract metrics for inner fold (training) and outer fold (testing) from list and convert to df
-df.train.miRNA <- trainDF(models.lasso.miRNA)
-df.test.miRNA <- testDF(models.lasso.miRNA)
+## confidence interval for the cv.train folds in the inner loop 
+ci.miRNA <- rbind.model.ci(models.lasso.miRNA)
 
 # extract important coefficients
 extract.coefs.miRNA <- extractCoefs(models.lasso.miRNA) %>% do.call(rbind,.) %>% table() 
 
-
 # calculate percentages
-feat.freq <- data.frame(sort(extract.coefs.miRNA/100)) %>% 
+feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>% 
   setNames(c("coef", "freq"))
 
 # plot important features
-ggplot(data = feat.freq, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
-  geom_bar(stat = "identity",  color = "black") + 
-  coord_flip() +
-  xlab("") +
-  ylab("fraction of cv-models using this feature (relative feature importance)") +
-  theme_bw() +
-  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-  geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
-  scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
-  labs(fill = "frequency")
-
-
-
+# ggplot(data = feat.freq.miRNA, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
+#   geom_bar(stat = "identity",  color = "black") + 
+#   coord_flip() +
+#   xlab("") +
+#   ylab("fraction of cv-models using this feature (relative feature importance)") +
+#   theme_bw() +
+#   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
+#   labs(fill = "frequency")
 
 
 
 #####################################
 ##
-## c.5 relaxed LASSO 
+## c.4b relaxed LASSO miRNA
 ##
 #####################################
 
-# obtain features for relaxed LASSO analysis (features with importance > 0.5, BRAF added manually within the function)
-feat.relaxed <-  feat.freq.complete[feat.freq.complete$freq > 0.5,]
-feat.relaxed <- feat.relaxed[feat.relaxed$coef != "BRAFpos",]
+feat.relaxed.miRNA <-  feat.freq.miRNA[feat.freq.miRNA$freq > 0.5,]
 
-# modelling and evaluation
-# models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
-# saveRDS(models.lasso.complete, "models/models.lasso.relaxedLasso.rds")
-# models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
+# models.lasso.relaxed.miRNA <- lassoEval("relaxedLassomiRNA", dat_log, rep = 10, k = 10)
+#saveRDS(models.lasso.relaxed.miRNA, "models/models_lasso_relaxed_miRNA.rds")
+models.lasso.relaxed.miRNA <- readRDS("models/models_lasso_relaxed_miRNA.rds")
 
 # set names of list elements
-models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames, folds), reps)
+models.lasso.relaxed.miRNA <- setNames(lapply(models.lasso.relaxed.miRNA, setNames, folds), reps)
 
-# extract metrics for inner fold (training) and outer fold (testing) from list and convert to df
-df.train.relaxedLasso <- trainDF(models.lasso.relaxedLasso)
-df.test.relaxedLasso <- testDF(models.lasso.relaxedLasso)
-
-# sapply(df.test.relaxedLasso, "[", "AUC") %>% unlist %>% confInt()
-# 
-# cv.train.relaxedLasso <- cv.trainDF(models.lasso.relaxedLasso)
-# 
-# sapply(df.train.relaxedLasso, "[", "mean") %>% unlist %>% mean()
-# sapply(cv.train.relaxedLasso , "[", "mean.upper") %>% unlist %>% mean()
-
-
-
+## confidence interval for the cv.train folds in the inner loop 
+ci.relaxed.miRNA <- rbind.model.ci(models.lasso.relaxed.miRNA)
 
 # extract important coefficients
-extract.coefs.relaxedLasso <- extractCoefs(models.lasso.relaxedLasso) %>% do.call(rbind,.) %>% table() 
+extract.coefs.relaxed.miRNA <- extractCoefs(models.lasso.relaxed.miRNA) %>% do.call(rbind,.) %>% table() 
 
 # calculate percentages
-feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>% 
+feat.freq.relaxed.miRNA <- data.frame(sort(extract.coefs.relaxed.miRNA/100)) %>% 
   setNames(c("coef", "freq"))
 
 # plot important features
-ggplot(data = feat.freq, aes(coef, freq)) +
-  geom_bar(stat = "identity",  color = "black", fill = "lightblue") + 
+ggplot(data = feat.freq.relaxed.miRNA, aes(coef, freq)) +
+  geom_bar(stat = "identity",  color = "black", fill = "skyblue") + 
   coord_flip() +
   xlab("") +
   ylab("fraction of cv-models using this feature (relative feature importance)") +
   theme_bw() +
   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
   geom_hline(yintercept = 0.5, lty = 2, color = "red") 
+  
 
+#####################################
+##
+## d Model comparison
+##
+#####################################
+
+
+dat_compare <- rbind(complete = ci.complete,
+      relaxedLasso = ci.relaxedLasso,
+      baseline = ci.baseline,
+      signif = ci.signif,
+      miRNA = ci.miRNA,
+      relaxedmiRNA = ci.relaxed.miRNA) %>% 
+  rownames_to_column("tmp") %>%
+  separate(tmp,c("model", "results"), extra = "merge") %>%
+  mutate(model = factor(model),
+         model = reorder(model, mean))
+
+# train inner cv ROC
+ggplot(filter(dat_compare, results == "train.inner"), aes(x=model, y=mean)) + 
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.3, size = 1) + 
+  coord_flip() + 
+  theme_bw() + 
+  scale_y_continuous(breaks = seq(0.6, 0.9, 0.05))+
+  ylab("ROC")
+
+
+# comparison of train.outer and test.outer
+ggplot(filter(dat_compare, results != "train.inner"), aes(x=model, y=mean, color= results)) + 
+  geom_point(position=position_dodge(.5)) +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.2,position=position_dodge(.5)) + 
+  coord_flip() + 
+  theme_bw() + 
+  scale_y_continuous(breaks = seq(0.6, 0.9, 0.05))+
+  ylab("ROC")
 
 
 ## to do
 # ROC Kurve
-# Model process strukturieren
-# konfidenzintervalle konstruieren
-# relaxed miRNA model?
-# feature selection
-  # nur serum parameter
-  # nur miRNAs
-  # signifikante features
-  # complete model with lasso for feature selection and subsequent relaxed lasso
+# ci for model coefficients to assess stability of the best model? 
 
-
-
-
-
-
-
-## inner loop: 10-fold cv repeated 5 times, outer loop: 10-fold cv repeated 10 times
-## An Analysis on Better Testing than Training Performances on the Iris Dataset
-## https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7565855/
-## Modelling Process angucken
-## calibration curve
-
-
-
-
-
-# cross validation to find the optimal parameters for elastic net regression
-
-# nested cv??
-# https://stackoverflow.com/questions/62276400/how-to-do-nested-cross-validation-with-lasso-in-caret-or-tidymodels
-# https://www.tidymodels.org/learn/work/nested-resampling/
-# https://stats.stackexchange.com/questions/65128/nested-cross-validation-for-model-selection
-
-# internal validation via bootstrap optimism? https://stats.stackexchange.com/questions/103411/internal-validation-via-bootstrap-what-roc-curve-to-present
-# https://stats.stackexchange.com/questions/61344/getting-the-bootstrap-validated-auc-in-r
-# https://www.rdocumentation.org/packages/rms/versions/6.1-1/topics/lrm mal durcharbeiten
-# concordance measure anstatt ROC?
-# cost function?
-
-# 1 model mit signif
-# 1 model mit LASSO feature selection
-# 1 model nur mit miRNas
-# 1 model nur mit herkömmlichen Pr?diktoren
-
-# define test and training set
-# use glmnet for feature selection
-# train glm to get coefficients and quantitative probabilities of response 
-# think about a proper cross-validation loop 
-
-
-# As a side comment, if you want to interpret the result be sure to demonstrate the that set of
-# variables selected by lasso is stable. This can be done using Monte Carlo simulation or by bootstrapping 
-# your own dataset.
-
-#Bootstrapping is the process of resampling with replacement (all values in the sample have an equal probability of being selected, 
-# including multiple times, so a value could have a duplicate).
-
-# glmnet for feature selection and then rf or xgbTree? or just a simple glm to have coefficients? 
-# or run another glmnet with the reduced variables
-
-# https://stats.stackexchange.com/questions/25305/is-this-a-correct-procedure-for-feature-selection-using-cross-validation?rq=1
-# https://stats.stackexchange.com/questions/60692/not-all-features-selected-by-glmnet-considered-signficant-by-glm-logistic-regre
-
-# run on bootstrap samples not just different data splits of test and training
-
-
-# Unterteilung in Training und Test?
-# inner loop for feature selection im Trainingsset?
-# anschlie?end glm model auf ganzes set mit den features, um model coefficients zu erhalten 
-# independent test auf Testset?
 
 
 

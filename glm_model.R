@@ -203,6 +203,7 @@ y <- dat_log$Responder
 k <- 10
 rep <- 10
 # models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)
+# saveRDS(models.lasso.complete, "models/models_lasso_complete.rds")
 models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
 
 # set names of list elements
@@ -244,6 +245,7 @@ ggplot(data = feat.freq.complete, aes(coef, freq, fill = ifelse(freq > 0.5, "red
 
 # model process and evaluation, k and rep define fold and repeats in outer loop 
 # models.lasso.baseline <- lassoEval("baseline", dat_log, rep = rep, k = k)
+# saveRDS(models.lasso.baseline, "models/models_lasso_baseline.rds")
 models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
 
 # set names of list elements
@@ -289,6 +291,7 @@ ggplot(data = feat.freq, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"
 
 # 
 # models.lasso.signif <- lassoEval("signif", dat_log, rep = rep, k = k)
+# saveRDS(models.lasso.signif, "models/models_lasso_signif.rds")
 models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
 
 # set names of list elements
@@ -332,7 +335,8 @@ ggplot(data = feat.freq, aes(coef, freq)) +
 
 #
 # models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = 10, k = 10)
-models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
+# saveRDS(models.lasso.miRNA, "models/models_lasso_miRNA.rds")
+# models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
 
 # set names of list elements
 models.lasso.miRNA <- setNames(lapply(models.lasso.miRNA, setNames, folds), reps)
@@ -378,7 +382,8 @@ feat.relaxed <- feat.relaxed[feat.relaxed$coef != "BRAFpos",]
 
 # modelling and evaluation
 # models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
-models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
+# saveRDS(models.lasso.complete, "models/models.lasso.relaxedLasso.rds")
+# models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
 
 # set names of list elements
 models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames, folds), reps)
@@ -386,6 +391,16 @@ models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames
 # extract metrics for inner fold (training) and outer fold (testing) from list and convert to df
 df.train.relaxedLasso <- trainDF(models.lasso.relaxedLasso)
 df.test.relaxedLasso <- testDF(models.lasso.relaxedLasso)
+
+# sapply(df.test.relaxedLasso, "[", "AUC") %>% unlist %>% confInt()
+# 
+# cv.train.relaxedLasso <- cv.trainDF(models.lasso.relaxedLasso)
+# 
+# sapply(df.train.relaxedLasso, "[", "mean") %>% unlist %>% mean()
+# sapply(cv.train.relaxedLasso , "[", "mean.upper") %>% unlist %>% mean()
+
+
+
 
 # extract important coefficients
 extract.coefs.relaxedLasso <- extractCoefs(models.lasso.relaxedLasso) %>% do.call(rbind,.) %>% table() 

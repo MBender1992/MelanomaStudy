@@ -50,7 +50,7 @@ label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
 
 # define text for footnote
-fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chiÂ² test for categorical data. Raw p-values are shown."
+fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
 
 table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
        data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, footnote = fn)

@@ -475,30 +475,7 @@ ggplot(dat_compare, aes(x=model, y=mean, color= results)) +
 # ci for model coefficients to assess stability of the best model? 
 
 
-#####################################
-##
-## e. ROC curve
-##
-#####################################
-
-
 # models.lasso.relaxedLasso.ROC <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
-# saveRDS(models.lasso.relaxedLasso.ROC, "models/models_lasso_relaxedLasso_ROC.rds")
-# models.lasso.relaxedLasso.ROC <- readRDS("models/models_lasso_relaxedLasso_ROC.rds")
-
-
-extractPredictions <- function(data){
-  lapply(1:10, function(x){
-    tmp <- sapply(data[[x]], '[', 'predictions') 
-    bind_rows(tmp)
-    })
-}
-
-test <- extractPredictions(models.lasso.relaxedLasso.ROC)
-
-roc.test <- bind_rows(test)
-
-plot(roc(roc.test$obs, roc.test$pred.ja), print.auc = T)
 
 
 
@@ -526,7 +503,7 @@ calc.model.metrics.2 <- function(x.train, y.train, x.test, y.test, train.method 
   
   # object to return
   res <- list(
-    predictions = data.frame(pred.ja = predict(md2, x.test, type="prob")$ja, obs = y.test),
+    predictions = data.frame(pred.ja = predict(md, x.test, type="prob")$ja, obs = y.test),
     coefficients = rownames_to_column(data.frame(vals = feat[feat[,1] != 0, 1][-1]),"coefs"),
     train.metrics = opt[which(opt$ROC == max(opt$ROC)),],
     train.cv = data.frame(cvAUC = ci_cv$cvAUC,
@@ -543,65 +520,111 @@ calc.model.metrics.2 <- function(x.train, y.train, x.test, y.test, train.method 
 
 
 
-ind <- createDataPartition(y, p =.8) %>% .$Resample1
-
-x.train <- x[ind,]
-x.test <- x[-ind,]
-y.train <- y[ind]
-y.test <- y[-ind]
-
-set.seed(23)
-md2 <- train(x.train, y.train, method = "glmnet",trControl = cctrl1,  metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)), preProcess= c("center", "scale"))
-pred <- predict(md2, x.test, type="prob")
-obs <- y.test
-
-roc(y.test, predict(md2, x.test, type="prob")[,1])
-
-pred <- predict(md2, x.test, type="raw")
-obs <- y.test
-sensitivity(obs,pred)
-specificity(obs,pred)
 
 
-
-sensitivity(obs, pred)
-specificity(obs,pred)
-data.frame(pred = pred$ja, obs = obs)
-
-
-extractSensSpec <- function(data){
-  lapply(1:10, function(x){
-    tmp <- sapply(data[[x]], '[', 'test.metrics') 
-    
-  })
-}
-
-pred <- predict(md2, x.test, type="prob")
-obs <- y.test
-
-mean_roc <- function(data, cutoffs = seq(from = 0, to = 1, by = 0.1)) {
-  map_df(cutoffs, function(cp) {
-    out <- cutpointr(data = data, x = pred, class = obs,
-                     subgroup = Sample, method = oc_manual, cutpoint = cp,
-                     pos_class = "neg", direction = ">=")
-    data.frame(cutoff = cp, 
-               sensitivity = mean(out$sensitivity),
-               specificity = mean(out$specificity))
-  })
-}
-
-
-
-library(cutpointr)
-
-### define cutpoints and calculate TPR and FPR to plot ROC curve
-
-
-
-ggplot(roc,aes(FPR,TPR))+geom_line(size = 2, alpha = 0.7)+
+df <- structure(list(TPR = c(0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 
+                             0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 
+                             0.38, 0.4, 0.42, 0.44, 0.46, 0.48, 0.5, 0.52, 0.54, 0.56, 0.58, 
+                             0.6, 0.62, 0.64, 0.64, 0.64, 0.66, 0.68, 0.7, 0.72, 0.74, 0.76, 
+                             0.78, 0.8, 0.8, 0.82, 0.82, 0.84, 0.84, 0.84, 0.86, 0.86, 0.86, 
+                             0.86, 0.88, 0.88, 0.9, 0.92, 0.92, 0.92, 0.92, 0.94, 0.94, 0.96, 
+                             0.96, 0.96, 0.96, 0.96, 0.96, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 
+                             0.98, 0.98, 0.98, 0.98, 0.98, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
+                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.02, 0.04, 0.06, 0.08, 0.1, 
+                             0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.24, 0.26, 0.28, 0.3, 
+                             0.32, 0.34, 0.36, 0.38, 0.4, 0.42, 0.42, 0.42, 0.44, 0.46, 0.48, 
+                             0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 0.6, 0.6, 0.6, 0.62, 0.62, 
+                             0.62, 0.64, 0.66, 0.66, 0.68, 0.68, 0.68, 0.7, 0.72, 0.74, 0.76, 
+                             0.78, 0.8, 0.8, 0.8, 0.82, 0.82, 0.84, 0.84, 0.84, 0.86, 0.86, 
+                             0.86, 0.86, 0.86, 0.88, 0.88, 0.88, 0.9, 0.9, 0.9, 0.9, 0.9, 
+                             0.9, 0.9, 0.92, 0.94, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 
+                             0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 1, 1, 1, 
+                             1, 1, 1, 1, 1, 1, 0.02, 0.04, 0.06, 0.08, 0.1, 0.1, 0.1, 0.12, 
+                             0.14, 0.16, 0.18, 0.2, 0.22, 0.24, 0.24, 0.26, 0.28, 0.28, 0.3, 
+                             0.32, 0.34, 0.36, 0.38, 0.4, 0.42, 0.42, 0.42, 0.42, 0.44, 0.44, 
+                             0.44, 0.46, 0.48, 0.48, 0.5, 0.52, 0.54, 0.56, 0.58, 0.58, 0.6, 
+                             0.62, 0.62, 0.62, 0.64, 0.66, 0.68, 0.68, 0.7, 0.72, 0.72, 0.72, 
+                             0.72, 0.74, 0.74, 0.74, 0.76, 0.76, 0.78, 0.78, 0.8, 0.82, 0.84, 
+                             0.84, 0.84, 0.86, 0.88, 0.88, 0.9, 0.9, 0.92, 0.92, 0.92, 0.92, 
+                             0.92, 0.92, 0.92, 0.92, 0.94, 0.94, 0.96, 0.96, 0.96, 0.96, 0.98, 
+                             0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 
+                             1, 1, 1, 1, 0.02, 0.04, 0.06, 0.06, 0.06, 0.08, 0.08, 0.1, 0.12, 
+                             0.14, 0.16, 0.16, 0.18, 0.2, 0.22, 0.24, 0.26, 0.28, 0.28, 0.3, 
+                             0.32, 0.32, 0.34, 0.34, 0.36, 0.38, 0.4, 0.42, 0.42, 0.44, 0.46, 
+                             0.46, 0.46, 0.48, 0.48, 0.5, 0.52, 0.54, 0.56, 0.56, 0.58, 0.6, 
+                             0.62, 0.64, 0.64, 0.64, 0.64, 0.64, 0.66, 0.68, 0.68, 0.7, 0.7, 
+                             0.7, 0.7, 0.7, 0.72, 0.74, 0.76, 0.76, 0.78, 0.78, 0.78, 0.8, 
+                             0.8, 0.82, 0.82, 0.84, 0.86, 0.86, 0.86, 0.86, 0.88, 0.9, 0.92, 
+                             0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.94, 0.94, 0.94, 
+                             0.94, 0.94, 0.94, 0.96, 0.98, 0.98, 0.98, 0.98, 1, 1, 1, 1, 1, 
+                             1), FPR = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.02, 0.04, 0.04, 
+                                         0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.06, 0.06, 0.08, 0.08, 
+                                         0.1, 0.12, 0.12, 0.14, 0.16, 0.18, 0.18, 0.2, 0.2, 0.2, 0.22, 
+                                         0.24, 0.26, 0.26, 0.28, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38, 0.38, 
+                                         0.4, 0.42, 0.44, 0.46, 0.48, 0.5, 0.52, 0.54, 0.56, 0.58, 0.58, 
+                                         0.6, 0.62, 0.64, 0.66, 0.68, 0.7, 0.72, 0.74, 0.76, 0.78, 0.8, 
+                                         0.82, 0.84, 0.86, 0.88, 0.9, 0.92, 0.94, 0.96, 0.98, 1, 0, 0, 
+                                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
+                                         0.02, 0.02, 0.02, 0.02, 0.04, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 
+                                         0.06, 0.06, 0.06, 0.06, 0.08, 0.1, 0.12, 0.12, 0.14, 0.16, 0.16, 
+                                         0.16, 0.18, 0.18, 0.2, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 0.22, 
+                                         0.24, 0.26, 0.26, 0.28, 0.28, 0.3, 0.32, 0.32, 0.34, 0.36, 0.38, 
+                                         0.4, 0.4, 0.42, 0.44, 0.44, 0.46, 0.48, 0.5, 0.52, 0.54, 0.56, 
+                                         0.56, 0.56, 0.56, 0.58, 0.6, 0.62, 0.64, 0.66, 0.68, 0.68, 0.7, 
+                                         0.72, 0.74, 0.76, 0.78, 0.8, 0.82, 0.84, 0.84, 0.86, 0.88, 0.9, 
+                                         0.92, 0.94, 0.96, 0.98, 1, 0, 0, 0, 0, 0, 0.02, 0.04, 0.04, 0.04, 
+                                         0.04, 0.04, 0.04, 0.04, 0.04, 0.06, 0.06, 0.06, 0.08, 0.08, 0.08, 
+                                         0.08, 0.08, 0.08, 0.08, 0.08, 0.1, 0.12, 0.14, 0.14, 0.16, 0.18, 
+                                         0.18, 0.18, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.22, 0.22, 0.22, 0.24, 
+                                         0.26, 0.26, 0.26, 0.26, 0.28, 0.28, 0.28, 0.3, 0.32, 0.34, 0.34, 
+                                         0.36, 0.38, 0.38, 0.4, 0.4, 0.42, 0.42, 0.42, 0.42, 0.44, 0.46, 
+                                         0.46, 0.46, 0.48, 0.48, 0.5, 0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 
+                                         0.62, 0.64, 0.64, 0.66, 0.66, 0.68, 0.7, 0.72, 0.72, 0.74, 0.76, 
+                                         0.78, 0.8, 0.82, 0.84, 0.86, 0.88, 0.9, 0.92, 0.94, 0.94, 0.96, 
+                                         0.98, 1, 0, 0, 0, 0.02, 0.04, 0.04, 0.06, 0.06, 0.06, 0.06, 0.06, 
+                                         0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.1, 0.1, 0.1, 0.12, 
+                                         0.12, 0.14, 0.14, 0.14, 0.14, 0.14, 0.16, 0.16, 0.16, 0.18, 0.2, 
+                                         0.2, 0.22, 0.22, 0.22, 0.22, 0.22, 0.24, 0.24, 0.24, 0.24, 0.24, 
+                                         0.26, 0.28, 0.3, 0.32, 0.32, 0.32, 0.34, 0.34, 0.36, 0.38, 0.4, 
+                                         0.42, 0.42, 0.42, 0.42, 0.44, 0.44, 0.46, 0.48, 0.48, 0.5, 0.5, 
+                                         0.52, 0.52, 0.52, 0.54, 0.56, 0.58, 0.58, 0.58, 0.58, 0.6, 0.62, 
+                                         0.64, 0.66, 0.68, 0.7, 0.72, 0.74, 0.74, 0.76, 0.78, 0.8, 0.82, 
+                                         0.84, 0.84, 0.84, 0.86, 0.88, 0.9, 0.9, 0.92, 0.94, 0.96, 0.98, 
+                                         1), GeneSet = structure(c(1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 
+                                                                   1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 
+                                                                   1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 
+                                                                   1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 
+                                                                   1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 
+                                                                   1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 
+                                                                   1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 2L, 2L, 2L, 2L, 2L, 
+                                                                   2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 
+                                                                   2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 
+                                                                   2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 
+                                                                   2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 
+                                                                   2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 
+                                                                   2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 3L, 
+                                                                   3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 
+                                                                   3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 
+                                                                   3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 
+                                                                   3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 
+                                                                   3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 
+                                                                   3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 3L, 
+                                                                   3L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 
+                                                                   4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 
+                                                                   4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 
+                                                                   4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 
+                                                                   4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 
+                                                                   4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 4L, 
+                                                                   4L, 4L, 4L, 4L, 4L, 4L, 4L), .Label = c("Distort = 1", "Distort = 1.5", 
+                                                                                                           "Distort = 2", "Distort = 2.5"), class = "factor")), .Names = c("TPR", 
+                                                                                                                                                                           "FPR", "GeneSet"), row.names = c(NA, -400L), class = "data.frame")
+ggplot(df,aes(FPR,TPR,color=GeneSet))+geom_line(size = 2, alpha = 0.7)+
   labs(title= "ROC curve", 
        x = "False Positive Rate (1-Specificity)", 
        y = "True Positive Rate (Sensitivity)")
+
+
 
 # simple logistic regression (Not recommended when features have been chosen by LASSO or elastic net regularization)
 logistic <- glm(Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`,data=dat3, family="binomial")

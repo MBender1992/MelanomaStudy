@@ -757,14 +757,17 @@ model.matrix.subset <- function(model, data){
   } else if(model == "signif"){
     mm <- model.matrix(Responder~., data = select(data, contains(readRDS("significant_features.rds")),Responder))[,-1]
   } else if(model == "relaxedLasso"){
-    mm <- model.matrix(Responder~., data = select(dat_log, c(feat.relaxed$coef,BRAF,Responder)))[,-1]
+    mm <- model.matrix(Responder~., data = select(data, c(feat.relaxed$coef,BRAF,Responder)))[,-1]
+  } else if(model == "relaxedLassomiRNA"){
+    mm <- model.matrix(Responder~., data = select(data, c(feat.relaxed.miRNA$coef,Responder)))[,-1]
   } else {
     stop("Please specify 1 of the following 4 options: 
     1. 'baseline' for a base model using conventional serum markers (LDH, CRP, S100, Eosinophile)
     2. 'miRNA' for a model using only miRNAs (reduced by lasso to informative features) 
     3. 'signif' for a model with significantly different features between responders and non-responders
     4. 'complete' for a model with all predictors (reduced by lasso)
-    5. 'relaxedLasso' for a model with the best predictors selected by the 'complete' model (afterwards reduced again with LASSO)")
+    5. 'relaxedLasso' for a model with the best predictors selected by the 'complete' model (afterwards reduced again with LASSO)
+    6. 'relaxedLassomiRNA for a model with the best predictors selected by the 'miRNA' model (afterwards reduced again with LASSO")
   }
   return(mm)
 }
@@ -835,28 +838,13 @@ lassoEval <- function(model, dat, rep, k, tuneGrid = expand.grid(alpha = 1, lamb
 
 
 # convert metrics from training data list to dataframe
-trainDF <- function(data){
-  lapply(1:rep, function(split){
-    do.call(rbind.data.frame, sapply(data[[split]], '[', 'train.metrics'))# %>% 
-      #summarize(mean = mean(ROC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec)) 
+unlist.model <- function(dat,metric, element){
+  ls <- lapply(1:rep, function(split){
+    do.call(rbind.data.frame, sapply(dat[[split]], '[', element)) 
   }) 
-} 
+  unlist(sapply(ls, "[", metric))
+}
 
-cv.trainDF <- function(data){
-  lapply(1:rep, function(split){
-    do.call(rbind.data.frame, sapply(data[[split]], '[', 'train.cv')) %>% 
-      summarize(mean.cvAUC = mean(cvAUC), mean.se = mean(se),mean.lower = mean(lower), mean.upper = mean(upper)) 
-  }) 
-} 
-
-
-# convert metrics from trainingtest data list to dataframe
-testDF <- function(data){
-  lapply(1:rep, function(split){
-    do.call(rbind.data.frame, sapply(data[[split]], '[', 'test.metrics')) #%>% 
-      #summarize(mean = mean(AUC), meanSens = mean(Sens, na.rm=T), meanSpec = mean(Spec)) 
-  }) 
-} 
 
 # extract coefficients from model list 
 extractCoefs <- function(data){
@@ -865,5 +853,23 @@ extractCoefs <- function(data){
     data.frame(coef = tmp) 
   })
 }
-  
 
+
+# construct confidence interval of a vector x
+construct.ci <- function(x){
+  avg <- mean(x)
+  moe <- confInt(x)
+  data.frame(mean = avg,
+             lower = avg - moe,
+             upper = avg + moe)
+}
+
+
+# 
+rbind.model.ci <- function(model){
+  rbind(train.inner = data.frame(mean = mean(unlist.model(model, "cvAUC", "train.cv")),
+                                 lower = mean(unlist.model(model, "lower", "train.cv")),
+                                 upper = mean(unlist.model(model, "upper", "train.cv"))),
+        #train.outer = construct.ci(unlist.model(model, "ROC", "train.metrics")),
+        test.outer =  construct.ci(unlist.model(model, "AUC", "test.metrics")))
+}

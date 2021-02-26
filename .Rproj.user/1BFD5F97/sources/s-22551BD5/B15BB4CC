@@ -1,26 +1,26 @@
 {
-    "id": "04419836",
-    "path": "C:/MBender/Arbeit/Github/MelanomaStudy/glm_model.R",
-    "project_path": "glm_model.R",
+    "id": "B15BB4CC",
+    "path": "C:/MBender/Arbeit/Github/base_scripts/R_functions_Melanoma.R",
+    "project_path": null,
     "type": "r_source",
     "hash": "0",
     "contents": "",
     "dirty": false,
-    "created": 1613658653731.0,
+    "created": 1614176939450.0,
     "source_on_save": false,
-    "relative_order": 1,
+    "relative_order": 5,
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "419,0",
-        "scrollLine": "392"
+        "cursorPosition": "721,54",
+        "scrollLine": "712"
     },
     "folds": "",
-    "lastKnownWriteTime": 1614271739,
+    "lastKnownWriteTime": 1614330759,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1614271739830,
+    "last_content_update": 1614330759068,
     "read_only": false,
     "read_only_alternatives": []
 }

@@ -14,6 +14,10 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 # load data with custom function for melanoma data only for Responders
 dat <- load_melanoma_data() # n = 101 patients
 
+
+# table(dat$Responder, dat$prior_BRAF_therapy)
+# chisq.test(dat$Responder, dat$prior_BRAF_therapy)
+
 #####################################
 #                                   #
 #         1. patient table          #
@@ -28,10 +32,11 @@ dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
 dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
-dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$brainMet <- factor(dat_table1$brainMet, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
 dat_table1$ECOG <- factor(dat_table1$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
 dat_table1$Stadium <- factor(dat_table1$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
+dat_table1$prior_BRAF_therapy <- factor(dat_table1$prior_BRAF_therapy, levels = c(0, 1) , labels = c("no", "yes"))
 
 
 # define labels for the table
@@ -45,14 +50,16 @@ label(dat_table1$ECOG)      <- "ECOG"
 label(dat_table1$breslow_thickness_mm)      <- "Breslow thickness (mm)" # change to double
 label(dat_table1$subtype) <- "Subtype"
 label(dat_table1$localization) <- "Localization"
-label(dat_table1$Hirnmetastase) <- "Brain metastasis"
+label(dat_table1$brainMet) <- "Brain metastasis"
 label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
+label(dat_table1$prior_BRAF_therapy) <- "Received prior anti-BRAF therapy"
+
 
 # define text for footnote
-fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
+fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chiÂ² test for categorical data. Raw p-values are shown."
 
-table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
+table1(~ Alter + BRAF + prior_BRAF_therapy + Stadium + miRExpAssess + adjuvant_IFN + brainMet + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
        data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, footnote = fn)
 
 

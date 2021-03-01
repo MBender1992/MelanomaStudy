@@ -21,12 +21,14 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 # load data with custom function for melanoma data only for Responders
 dat <- load_melanoma_data() %>% 
   filter(!is.na(Responder)) # n = 81
+  
+
 
 dat_fct <- dat %>%
   filter(miRExpAssess == 1) %>%
   select(-c(TRIM_PDL1_Expression , miRExpAssess, therapy_at_blood_draw)) %>%
   mutate( across(c(Responder, Stadium, Baseline, BRAF, ECOG, subtype, localization,
-                   sex, Hirnmetastase, adjuvant_IFN, befallen_Organe, nras), as.factor)) 
+                   sex, brainMet, adjuvant_IFN, organsInvolved, nras, prior_BRAF_therapy), as.factor)) 
 
 xtabs(~ Responder + Stadium, data=dat_fct) 
 xtabs(~ Responder + BRAF, data=dat_fct)
@@ -35,10 +37,13 @@ xtabs(~ Responder + ECOG, data=dat_fct) # not enough samples in ECOG2
 xtabs(~ Responder + subtype, data=dat_fct) # too many groups with few samples
 xtabs(~ Responder + localization, data=dat_fct) # too many groups with few samples
 xtabs(~ Responder + sex, data=dat_fct)
-xtabs(~ Responder + Hirnmetastase, data=dat_fct)
+xtabs(~ Responder + brainMet, data=dat_fct)
 xtabs(~ Responder + adjuvant_IFN, data=dat_fct)
-xtabs(~ Responder + befallen_Organe, data=dat_fct)
+xtabs(~ Responder + organsInvolved, data=dat_fct) # too few observations
 xtabs(~ Responder + nras, data=dat_fct) # too few observations
+xtabs(~ Responder + prior_BRAF_therapy, data=dat_fct)
+
+
 
 # remove columns that yield high uncertainty
 dat_fct$ECOG <- NULL
@@ -47,6 +52,9 @@ dat_fct$localization <- NULL
 dat_fct$nras <- NULL
 dat_fct$Baseline <- NULL
 dat_fct$ID <- NULL
+dat_fct$organsInvolved <- NULL
+dat_fct$breslow_thickness_mm <- NULL # included in stage de
+
 
 #####################################
 ## 
@@ -59,12 +67,15 @@ NAs <- sapply(dat_fct, function(df){
   sum(is.na(df) ==TRUE)/length(df);
 })
 
-# remove columns with more than 5 % NAs
-dat_fct <- dat_fct[, -which(NAs > 0.05)]
+# remove columns with more than 20 % NAs
+dat_fct <- dat_fct[, -which(NAs > 0.2)]
 
 # convert factor columns to numerical 
 dat_fct$BRAF <- ifelse(dat_fct$BRAF == "pos", 1, 0)
 dat_fct$Stadium <- ifelse(dat_fct$Stadium == "II", 2,ifelse(dat_fct$Stadium == "III", 3, 4))
+dat_fct$sex <- ifelse(dat_fct$sex == "m", 1, 0)
+dat_fct$brainMet <- ifelse(dat_fct$brainMet == "ja", 1, 0)
+dat_fct$prior_BRAF_therapy <- parse_number(as.character(dat_fct$prior_BRAF_therapy))
 
 # impute missing values with random forest algorithm
 set.seed(25)
@@ -75,20 +86,30 @@ dat_imp <- dat_fct %>%
   .$ximp %>%
   # replace calculated probabilities by the factor
   mutate(BRAF = ifelse(BRAF > 0.5, 1,0),
-         Stadium = round(Stadium))
+         Stadium = round(Stadium), 
+         Alter = round(Alter), 
+         brainMet = ifelse(brainMet > 0.5, 1,0), 
+         prior_BRAF_therapy = ifelse(prior_BRAF_therapy > 0.5, 1, 0))
+
+
 
 # replace numerical values by factor for encoding later
 dat_imp$BRAF <- factor(dat_imp$BRAF, levels = c(0,1), labels = c("neg", "pos"))
 dat_imp$Stadium <- factor(dat_imp$Stadium, levels = c(2,3,4), labels = c("II", "III", "IV"))
+dat_imp$sex <- factor(dat_imp$sex, levels = c(0,1), labels = c("w", "m"))
+dat_imp$brainMet <- factor(dat_imp$brainMet, levels = c(0,1), labels = c("no", "yes"))
+dat_imp$prior_BRAF_therapy  <- factor(dat_imp$prior_BRAF_therapy, levels = c(0,1), labels = c("no", "yes"))
+
+
 
 # replacing NAs with imputed values
 dat_fct$BRAF <- dat_imp$BRAF
 dat_fct$Stadium <- dat_imp$Stadium
 dat_fct$S100 <- dat_imp$S100
-
-
-
-
+dat_fct$Alter<- dat_imp$Alter
+dat_fct$brainMet <- dat_imp$brainMet
+dat_fct$prior_BRAF_therapy <- dat_imp$dat_fct$prior_BRAF_therapy
+dat_fct$sex <- dat_imp$sex
 
 
 #####################################

@@ -23,7 +23,6 @@ dat <- load_melanoma_data() %>%
   filter(!is.na(Responder)) # n = 81
   
 
-
 dat_fct <- dat %>%
   filter(miRExpAssess == 1) %>%
   select(-c(TRIM_PDL1_Expression , miRExpAssess, therapy_at_blood_draw)) %>%
@@ -53,7 +52,8 @@ dat_fct$nras <- NULL
 dat_fct$Baseline <- NULL
 dat_fct$ID <- NULL
 dat_fct$organsInvolved <- NULL
-dat_fct$breslow_thickness_mm <- NULL # included in stage de
+dat_fct$breslow_thickness_mm <- NULL # included in stage variable
+dat_fct$BRAF <- NULL # highly correlated with prior BRAF therapy and therefore rather adds noise to the model
 
 
 #####################################
@@ -71,7 +71,6 @@ NAs <- sapply(dat_fct, function(df){
 dat_fct <- dat_fct[, -which(NAs > 0.2)]
 
 # convert factor columns to numerical 
-dat_fct$BRAF <- ifelse(dat_fct$BRAF == "pos", 1, 0)
 dat_fct$Stadium <- ifelse(dat_fct$Stadium == "II", 2,ifelse(dat_fct$Stadium == "III", 3, 4))
 dat_fct$sex <- ifelse(dat_fct$sex == "m", 1, 0)
 dat_fct$brainMet <- ifelse(dat_fct$brainMet == "ja", 1, 0)
@@ -85,8 +84,7 @@ dat_imp <- dat_fct %>%
   missForest() %>%
   .$ximp %>%
   # replace calculated probabilities by the factor
-  mutate(BRAF = ifelse(BRAF > 0.5, 1,0),
-         Stadium = round(Stadium), 
+  mutate(Stadium = round(Stadium), 
          Alter = round(Alter), 
          brainMet = ifelse(brainMet > 0.5, 1,0), 
          prior_BRAF_therapy = ifelse(prior_BRAF_therapy > 0.5, 1, 0))
@@ -94,8 +92,6 @@ dat_imp <- dat_fct %>%
 
 
 # replace numerical values by factor for encoding later
-dat_imp$BRAF <- factor(dat_imp$BRAF, levels = c(0,1), labels = c("neg", "pos"))
-dat_imp$Stadium <- factor(dat_imp$Stadium, levels = c(2,3,4), labels = c("II", "III", "IV"))
 dat_imp$sex <- factor(dat_imp$sex, levels = c(0,1), labels = c("w", "m"))
 dat_imp$brainMet <- factor(dat_imp$brainMet, levels = c(0,1), labels = c("no", "yes"))
 dat_imp$prior_BRAF_therapy  <- factor(dat_imp$prior_BRAF_therapy, levels = c(0,1), labels = c("no", "yes"))
@@ -103,12 +99,11 @@ dat_imp$prior_BRAF_therapy  <- factor(dat_imp$prior_BRAF_therapy, levels = c(0,1
 
 
 # replacing NAs with imputed values
-dat_fct$BRAF <- dat_imp$BRAF
 dat_fct$Stadium <- dat_imp$Stadium
 dat_fct$S100 <- dat_imp$S100
 dat_fct$Alter<- dat_imp$Alter
 dat_fct$brainMet <- dat_imp$brainMet
-dat_fct$prior_BRAF_therapy <- dat_imp$dat_fct$prior_BRAF_therapy
+dat_fct$prior_BRAF_therapy <- dat_imp$prior_BRAF_therapy
 dat_fct$sex <- dat_imp$sex
 
 
@@ -227,6 +222,7 @@ rep <- 10
 # saveRDS(models.lasso.complete, "models/models_lasso_complete.rds")
 models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
 
+
 # set names of list elements
 models.lasso.complete <- setNames(lapply(models.lasso.complete, setNames, folds), reps)
 
@@ -242,13 +238,13 @@ feat.freq.complete <- data.frame(sort(extract.coefs.complete/100)) %>%
 
 # plot important features
 # ggplot(data = feat.freq.complete, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
-#   geom_bar(stat = "identity",  color = "black") + 
+#   geom_bar(stat = "identity",  color = "black") +
 #   coord_flip() +
 #   xlab("") +
 #   ylab("fraction of cv-models using this feature (relative feature importance)") +
 #   theme_bw() +
 #   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") +
 #   scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
 #   labs(fill = "frequency")
 
@@ -262,7 +258,8 @@ feat.freq.complete <- data.frame(sort(extract.coefs.complete/100)) %>%
 
 # obtain features for relaxed LASSO analysis (features with importance > 0.5, BRAF added manually within the function)
 feat.relaxed <-  feat.freq.complete[feat.freq.complete$freq > 0.5,]
-feat.relaxed <- feat.relaxed[feat.relaxed$coef != "BRAFpos",]
+feat.relaxed <- feat.relaxed[as.character(feat.relaxed$coef) %like any% names(dat_log),]
+
 
 # modelling and evaluation
 # models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
@@ -494,6 +491,25 @@ ggplot(dat_compare, aes(x=model, y=mean, color= results)) +
 ## to do
 # ROC Kurve
 # ci for model coefficients to assess stability of the best model? 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #####################################

@@ -1,17 +1,17 @@
-ID,Responder,therapy_start,Abnahmedatum,Baseline,TRIM_PDL1_Expression,therapy_at_blood_draw,ECOG,breslow_thickness_mm,subtype,localization,sex,Alter,Hirnmetastase,adjuvant_IFN,befallen_Organe,Eosinophile,CRP,LDH,S100,BRAF,nras,Stadium,Vorbehandlung
+ID,Responder,therapy_start,Abnahmedatum,Baseline,TRIM_PDL1_Expression,therapy_at_blood_draw,ECOG,breslow_thickness_mm,subtype,localization,sex,Alter,brainMet,adjuvant_IFN,organsInvolved,Eosinophile,CRP,LDH,S100,BRAF,nras,Stadium,Vorbehandlung
 1,,NA,NA,NA,,,,,,,,,,,,,,,,,,,
 2,,NA,NA,NA,,,,,,,,,,,,,,,,,,,
 3,ja,Feb 15,31.03.2016,nein,,Pembrolizumab,0,NA,cutanes Melanom,trunk,m,69,,nein,1,4.3,2.3,159,0.04,neg.,,IV,"2012 dendritische T-Zell-Therapie, 10-12/15 4 Zyklen Ipilimumab "
 4,nein,Jan 14,31.03.2016,nein,,Dabrafenib/Trametinib,0,8.0 mm,cutanes Melanom,head / neck,m,79,,nein,3,3.3,18.9,231,0.09,pos.,,IV,"2-6/13 Zelboraf, 1-7/14 9 Zyklen Keytruda, 8-10/14 4 Zyklen Ipi, 11/14-5/15 Tafinlar und Mekinist, seit 6/15 - lfd. Tafinlar 75 mg 1-0-1 und 11 Zyklen DTIC"
 5,ja,Sep 15,31.03.2016,nein,,Pembrolizumab,0,6.0 mm,cutanes Melanom,acral,m,73,,ja,2,3.1,0.8,290,,neg.,,IV,"11/02-07/04 adj. Chemo mit DTIC (21 Zyklen), 10/04-10/05 Hochdosis Inteferontherapie, seit 10/15 XGEVIA, seit 09/15 6 Zyklen Keytruda"
 6,ja,Mrz 15,31.03.2016,nein,,Nivolumab,1,3.0 mm,cutanes Melanom,head / neck,w,82,,nein,3,9.8,5.5,174,0.11,neg.,,IIIC,"11/12-01/13 4 Zyklen Ipilimimab 3mg/KgKG,12/13-02/14 4 Zyklen Re- Induktion Ipilimumab 3mg/KgKG, seit 03/15 24 Zyklen Anti PD-I (BMS-Studie)"
-7,ja,Mrz 14,19.04.2016,nein,,Nivolumab,0,1.65 mm,cutanes Melanom,trunk,m,63,,ja,4,1.1,2.7,239,0.38,neg.,,IV,"03/07-09/08 adj. IFN s.c.,04/13 1 Zyklus DTIC 1000mg/m², 06-07/13 3 Zyklen Ipilimumab, 07/13 Temodal 420 mg über 5 Tg., 03/14 -04/16 52 Zyklen Nivolumab in BMS Studie"
+7,ja,Mrz 14,19.04.2016,nein,,Nivolumab,0,1.65 mm,cutanes Melanom,trunk,m,63,,ja,4,1.1,2.7,239,0.38,neg.,,IV,"03/07-09/08 adj. IFN s.c.,04/13 1 Zyklus DTIC 1000mg/mÂ², 06-07/13 3 Zyklen Ipilimumab, 07/13 Temodal 420 mg Ã¼ber 5 Tg., 03/14 -04/16 52 Zyklen Nivolumab in BMS Studie"
 8,ja,Jan 16,31.03.2016,nein,,Pembrolizumab,0,NA,NA,,m,49,,nein,3,4.6,4.7,233,0.06,pos.,,,"05/14-10/14 BRAF und MEK- Inhibitor (Tafinlar+Mekinest),10-12/14 4 Zyklen Ipilimumab, seit 01/16 3 Zyklen Keytruda 2mg/KgKG"
 9,nein,Mrz 15,31.03.2016,nein,,Nivolumab,0,6.5 mm,cutanes Melanom,extremities,w,44,,ja,2,1.6,0.3,162,,pos.,,IIIC,"07/08-06/09 Hochdosis IFN Intron-A, 11/10 8 Zyklen IL2, 06-09/13 4 Zyklen Ipi, 02-03/14 8 Zyklen IL2, 03/15-04/16 30xNivolumab,07/15 7x IL2,"
 10,ja,Jan 15,22.04.2016,nein,,Pembrolizumab,0,1.0 mm,cutanes Melanom,extremities,w,63,ja,,2,2,2.3,179,0.05,neg.,pos,IV,"07-08/14 3 Zyklen IPI, 10/14 3x Remicade, 01/15-lfd Zyklen Keytruda"
 11,nein,keine Therapie,29.03.2016,NA,,Ipilimumab,1,9.0 mm,cutanes Melanom,trunk,w,66,,nein,3,0.1,3,256,,neg.,,IV,"01-03/16 4 Zyklen Keytruda, seit 03/16 Ipi (3mg(KgKG)"
 12,nein,Sep 16,01.04.2016,ja,,Dabrafenib/Trametinib,0,2.25 mm,cutanes Melanom,extremities,m,33,,ja,,0.5,2.1,238,0.08,pos.,,IV,"06/04-06/05 Hochdosis IFN,09/07-02/09+05/11-09/13 Peptidvakzinierung, 05/09-01/10 8 Zyklen DTIC, Carmujstin und Cisplatin,01-01/14 4x Ipilimumab,01-05/15 Tafinlar und Mekinist, seit 02/16 Re- Start Tafinlar und Mekinist"
-13,nein,Aug 15,01.04.2016,nein,,Pembrolizumab,1,NA,cutanes Melanom,trunk,m,80,,,3,6.5,6.5,252,0.14,neg.,,IV,"seit 09/15 8 Zyklen Pembrolizumab 2mg/KgKG, 20.04.16:Temodal 140 mg für 5 Tage"
+13,nein,Aug 15,01.04.2016,nein,,Pembrolizumab,1,NA,cutanes Melanom,trunk,m,80,,,3,6.5,6.5,252,0.14,neg.,,IV,"seit 09/15 8 Zyklen Pembrolizumab 2mg/KgKG, 20.04.16:Temodal 140 mg fÃ¼r 5 Tage"
 14,nein,keine Therapie,01.04.2016,NA,,Elektrochemotherapie,1,NA,cutanes Melanom,head / neck,m,69,nein,nein,2,2,5,308,0.23,neg.,,IV,"09-11/15 4 Zyklen Keytruda, 11/15-02/16 4 Zyklen Ipilimumab, darunter Progeress, geplant Mekinist Monotherapie"
 15,nein,Jun 14,01.04.2016,nein,+,Pembrolizumab,0,1.45 mm,cutanes Melanom,,w,44,ja,ja,3,4.9,3.5,204,0.07,pos.,,IV,"8-10/13 Zelboraf, 10-12/13 4 Zyklen Ipi, 1-6/14 Tafinlar und Mekinist,  6/14-lfd.28 Zyklen Pembro"
 16,nein,Mrz 16,01.04.2016,ja,,Pembrolizumab,0,5.6 mm,cutanes Melanom,trunk,m,75,,nein,3,1.2,2.4,210,0.77,pos.,,IV,"06/15 Tafinlar 75 2-0-2 und Mekinist 2mg 1xtgl., seit 03/16 2 Zyklen keytruda"
@@ -32,7 +32,7 @@ ID,Responder,therapy_start,Abnahmedatum,Baseline,TRIM_PDL1_Expression,therapy_at
 31,ja,Aug 15,14.04.2016,nein,++,-,0,1.6 mm,cutanes Melanom,extremities,w,73,,,2,4.1,6.5,213,0.08,neg.,,IV,"03-04/15 3 Zyklen Ipi (Colitis), 05-06/15 2 Zyklen Remicade, 08-12/15 7 Zyklen Keytruda (Colitis), wait and see"
 32,ja,Jul 16,30.08.2016,ja,-,-,0,2.0 mm,cutanes Melanom,head / neck,w,, ,,,0.6,13.1,185,0.09,pos.,,IIIC,
 33,ja,Jun 15,14.04.2016,nein,,Pembrolizumab,0,NA,cutanes Melanom,NA,m,74,nein,nein,1,0.8,3.5,188,0.03,neg.,,IV,"03-05/15 4 Zyklen Ipi, 06/15-03/16 15 Zyklen Keytruda lfd.,"
-34,ja,Okt 13,26.04.2016,nein,,Nivolumab,1,3.2 mm,cutanes Melanom,extremities,w,78,nein,ja,3,1.6,4.6,153,0.09,neg,,IV,"12/11 adj. IFN Therapie 3x3 Mio IE s.c., 08/12 2 Zyklen DTIC 1000mg/m²KOF,12/12 4 Zyklen Ipilimumab,seit  10/13 60 Zyklen PD-1 Therapie"
+34,ja,Okt 13,26.04.2016,nein,,Nivolumab,1,3.2 mm,cutanes Melanom,extremities,w,78,nein,ja,3,1.6,4.6,153,0.09,neg,,IV,"12/11 adj. IFN Therapie 3x3 Mio IE s.c., 08/12 2 Zyklen DTIC 1000mg/mÂ²KOF,12/12 4 Zyklen Ipilimumab,seit  10/13 60 Zyklen PD-1 Therapie"
 35,ja,Apr 16,26.04.2016,ja,,Ipilimumab+Nivolumab,0,8.0 mm,cutanes Melanom,extremities,m,38,nein,nein,3,6.8,4,168,0.05,neg.,,IIIC,seit 26.04.16 3 Zyklen Immuned-Studie 
 36,ja,Jun 15,26.04.2016,nein,,Pembrolizumab,2,NA,NA,NA,m,92,nein,nein,2,2,7.8,185,0.14,neg.,,IV,seit 06/15 14 Zyklen Keytruda
 37,nein,Aug 16,28.04.2016,ja,,Interleukin,0,1.3 mm,cutanes Melanom,head / neck,m,45,nein,ja,1,1.7,5.5,178,0.09,neg.,,IIIC,
@@ -51,13 +51,13 @@ ID,Responder,therapy_start,Abnahmedatum,Baseline,TRIM_PDL1_Expression,therapy_at
 50,ja,Nov 15,12.05.2016,nein,,Pembrolizumab,1,2.3 mm,cutanes Melanom,trunk,m,85,ja,nein,3,1.5,0.6,192,0.56,neg.,,IV,seit 11/15 9 Zyklen Keytruda
 51,nein,Jul 14,12.05.2016,nein,,Dabrafenib/Trametinib,0,3.2 mm,cutanes Melanom,extremities,w,55,ja,,3,2.4,25.2,290,0.15,pos.,,IV,"05-10/13 Zellboraf,10-12/13 4x Ipilimumab,07-10/14 5 Zyklen Anti-PD-I (EAP Programm).11/14 Beginn Tafinular 150mg 2xtgl,12/14 Beginn MEK 2mg 1xtgl., reduziert 07/15 75 2xtgl"
 52,ja,Aug 15,17.05.2016,nein,,Pembrolizumab,0,4.5 mm,cutanes Melanom,trunk,m,72,nein,ja,2,0.6,2,199,0.26,neg.,,IV,"01-05/12 Low dose IFN, 05-07/15 4 Zyklen Ipilimimab,seit 08/15 12 Zyklen Keytruda 2mg/kgKG"
-53,ja,Feb 15,17.05.2016,nein,++,Nivolumab,0,4.5 mm,cutanes Melanom,trunk,w,36,nein,ja,2,1.2,3.3,128,0.05,neg.,,IV,"06-07/13 2x DTIC 1000mg/M²KOF, 09-11/13 4x Ipilimumab, seit 02/15 Studie BMS NIVO 210mg (bisher 33 Zyklen)"
+53,ja,Feb 15,17.05.2016,nein,++,Nivolumab,0,4.5 mm,cutanes Melanom,trunk,w,36,nein,ja,2,1.2,3.3,128,0.05,neg.,,IV,"06-07/13 2x DTIC 1000mg/MÂ²KOF, 09-11/13 4x Ipilimumab, seit 02/15 Studie BMS NIVO 210mg (bisher 33 Zyklen)"
 54,nein,Nov 13,17.05.2016,nein,,Encorafenib,0,0.6 mm,cutanes Melanom,trunk,m,47,nein,,2,3.1,5.4,153,0.02,pos.,,IV,"11/13-04/14  PD-1 vs. Ipi. Vs. Anti PD1+ Ipi in BMS Studie. Studie insg. 13 mal., 05/14 Beginn  BRAF Inhibitor in Columbusstudie 300(200-100)mg, bisher 26 Zyklen"
-55,NA,keine Therapie,19.05.2016,NA,,-,2,1.1 mm,cutanes Melanom,trunk,m,74,nein,nein,3,1.4,4.6,127,0.03,pos.,,IV,07/10-03/11 9 zyklen DTIC 1000mg/m²KOF
+55,NA,keine Therapie,19.05.2016,NA,,-,2,1.1 mm,cutanes Melanom,trunk,m,74,nein,nein,3,1.4,4.6,127,0.03,pos.,,IV,07/10-03/11 9 zyklen DTIC 1000mg/mÂ²KOF
 56,NA,keine Therapie,19.05.2016,NA,,Dabrafenib/Trametinib,1,2.25 mm,cutanes Melanom,extremities,w,67,ja,,4,1,12.9,230,0.1,pos.,,IV,seit 11/15 Tafinlar und Mekinest
 57,NA,keine Therapie,19.05.2016,NA,,Ipilimumab 2013 mit complete response,0,4.4 mm,cutanes Melanom,trunk,w,55,nein,ja,2,0,1.5,215,0.06,neg.,,IV,"06-07/13 2 Zyklen DTIC, 08-10/13 4 Zyklen Ipilimumab"
 58,ja,Nov 15,19.05.2016,nein,,Pembrolizumab,1,2.25 mm,cutanes Melanom,acral,m,86,nein,nein,1,6.3,3.6,184,0.1,pos.,,IIIC,seit 11/15  9 Zyklen Anti-PD-1- Therapie
-59,nein,Aug 15,26.05.2016,nein,-,Temozolomid,1,3.0 mm,cutanes Melanom,head / neck,w,79,ja,ja,3,2.9,16.9,237,0.13,neg.,,IV,"07-08/14 Inteferon Therapie s.c. 3x/woche,04-07/15 4 Zyklen Ipilimumab, 08/15-02/16 10 Zyklen Keytruda, seit 03/16 3 Zyklen Temodal 360 mg jeweils über 5 Tage"
+59,nein,Aug 15,26.05.2016,nein,-,Temozolomid,1,3.0 mm,cutanes Melanom,head / neck,w,79,ja,ja,3,2.9,16.9,237,0.13,neg.,,IV,"07-08/14 Inteferon Therapie s.c. 3x/woche,04-07/15 4 Zyklen Ipilimumab, 08/15-02/16 10 Zyklen Keytruda, seit 03/16 3 Zyklen Temodal 360 mg jeweils Ã¼ber 5 Tage"
 60,NA,keine Therapie,26.06.2016,NA,,-,1,1.5 mm,cutanes Melanom,head / neck,w,75,,ja,1,12.1,12.8,217,0.08,NA,,IIIC,seit 9.05.16 5 Zyklen IL-2 Unterspritzung von 9 MIO IE.
 61,nein,Aug 17,26.05.2016,ja,,-,0,1.3 mm,cutanes Melanom,extremities,w,49,ja,,1,2.7,2.6,146,0.1,pos.,,IV,keine in den Akten
 62,NA,keine Therapie,14.06.2016,NA,,-,0,2.0 mm,cutanes Melanom,acral,w,59,,ja,1,1.4,0.4,189,0.1,NA,,IIIC,09-10/12 radiatio

@@ -7,6 +7,7 @@ library(devtools)
 library(caret)
 library(doParallel)
 library(pROC)
+library(DescTools)
 library(pbapply)
 
 # source R functions
@@ -189,16 +190,12 @@ hist(log(train.data$CRP))
 # transform the whole dataset
 tmp <- dat_fct %>% select(where(is.numeric))
 fctrs <- dat_fct %>% select(!where(is.numeric))
-dat_log <- data.frame(cbind(log(tmp+1), fctrs))
+dat_log <- data.frame(cbind(log(tmp+1), fctrs)) %>% 
+  mutate(Responder = factor(Responder, levels = c("nein", "ja")))
 
 
 #
 y <- dat_log$Responder
-
-
-
-
-
 
 
 #####################################
@@ -218,9 +215,9 @@ y <- dat_log$Responder
 # define parameters for 10 fold cross validation repeated 10 times
 k <- 10
 rep <- 10
-# models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)
+models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.complete, "models/models_lasso_complete.rds")
-models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
+# models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
 
 
 # set names of list elements
@@ -262,9 +259,9 @@ feat.relaxed <- feat.relaxed[as.character(feat.relaxed$coef) %like any% names(da
 
 
 # modelling and evaluation
-# models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
+models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.relaxedLasso, "models/models_lasso_relaxedLasso.rds")
-models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
+# models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
 
 # set names of list elements
 models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames, folds), reps)
@@ -300,9 +297,9 @@ feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>%
 #####################################
 
 # model process and evaluation, k and rep define fold and repeats in outer loop 
-# models.lasso.baseline <- lassoEval("baseline", dat_log, rep = rep, k = k)
+models.lasso.baseline <- lassoEval("baseline", dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.baseline, "models/models_lasso_baseline.rds")
-models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
+# models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
 
 # set names of list elements
 models.lasso.baseline <- setNames(lapply(models.lasso.baseline, setNames, folds), reps)
@@ -340,9 +337,9 @@ feat.freq <- data.frame(sort(extract.coefs.baseline/100)) %>%
 #####################################
 
 # 
-# models.lasso.signif <- lassoEval("signif", dat_log, rep = rep, k = k)
+models.lasso.signif <- lassoEval("signif", dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.signif, "models/models_lasso_signif.rds")
-models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
+# models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
 
 # set names of list elements
 models.lasso.signif <- setNames(lapply(models.lasso.signif, setNames, folds), reps)
@@ -383,9 +380,9 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
 #####################################
 
 #
-# models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = 10, k = 10)
+models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = 10, k = 10)
 # saveRDS(models.lasso.miRNA, "models/models_lasso_miRNA.rds")
-models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
+# models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
 
 # set names of list elements
 models.lasso.miRNA <- setNames(lapply(models.lasso.miRNA, setNames, folds), reps)
@@ -422,9 +419,9 @@ feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>%
 
 feat.relaxed.miRNA <-  feat.freq.miRNA[feat.freq.miRNA$freq > 0.5,]
 
-# models.lasso.relaxed.miRNA <- lassoEval("relaxedLassomiRNA", dat_log, rep = 10, k = 10)
+models.lasso.relaxed.miRNA <- lassoEval("relaxedLassomiRNA", dat_log, rep = 10, k = 10)
 #saveRDS(models.lasso.relaxed.miRNA, "models/models_lasso_relaxed_miRNA.rds")
-models.lasso.relaxed.miRNA <- readRDS("models/models_lasso_relaxed_miRNA.rds")
+# models.lasso.relaxed.miRNA <- readRDS("models/models_lasso_relaxed_miRNA.rds")
 
 # set names of list elements
 models.lasso.relaxed.miRNA <- setNames(lapply(models.lasso.relaxed.miRNA, setNames, folds), reps)
@@ -437,7 +434,8 @@ extract.coefs.relaxed.miRNA <- extractCoefs(models.lasso.relaxed.miRNA) %>% do.c
 
 # calculate percentages
 feat.freq.relaxed.miRNA <- data.frame(sort(extract.coefs.relaxed.miRNA/100)) %>% 
-  setNames(c("coef", "freq"))
+  
+                                                                                                                        setNames(c("coef", "freq"))
 
 # plot important features
 ggplot(data = feat.freq.relaxed.miRNA, aes(coef, freq)) +

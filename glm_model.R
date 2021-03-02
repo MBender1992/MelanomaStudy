@@ -9,6 +9,7 @@ library(doParallel)
 library(pROC)
 library(DescTools)
 library(pbapply)
+library(cvAUC)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -464,34 +465,31 @@ dat_compare <- rbind(complete = ci.complete,
   rownames_to_column("tmp") %>%
   separate(tmp,c("model", "results"), extra = "merge") %>%
   mutate(model = factor(model),
-         model = reorder(model, mean))
+         model = reorder(model, cvAUC))
 
 # train inner cv ROC
-ggplot(filter(dat_compare, results == "train.inner"), aes(x=model, y=mean)) + 
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.3, size = 1) + 
+ggplot(filter(dat_compare, results == "train.inner"), aes(x=model, y=cvAUC)) + 
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.3, size = 1) +
+  geom_point(size = 4, shape = 18, color = "red") +
   coord_flip() + 
   theme_bw() + 
-  scale_y_continuous(breaks = seq(0.6, 0.9, 0.05))+
+  scale_y_continuous(breaks = seq(0.5, 0.9, 0.05))+
   ylab("ROC")
 
 
 # comparison of train.outer and test.outer
-ggplot(dat_compare, aes(x=model, y=mean, color= results)) + 
+ggplot(dat_compare, aes(x=model, y=cvAUC, color= results)) + 
   geom_point(position=position_dodge(.5)) +
   geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.2,position=position_dodge(.5)) + 
   coord_flip() + 
   theme_bw() + 
-  scale_y_continuous(breaks = seq(0.6, 0.9, 0.05))+
+  scale_y_continuous(breaks = seq(0.5, 0.9, 0.05))+
   ylab("ROC")
 
 
 ## to do
 # ROC Kurve
 # ci for model coefficients to assess stability of the best model? 
-
-
-
 
 
 
@@ -517,126 +515,36 @@ ggplot(dat_compare, aes(x=model, y=mean, color= results)) +
 #####################################
 
 
-# models.lasso.relaxedLasso.ROC <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
-# saveRDS(models.lasso.relaxedLasso.ROC, "models/models_lasso_relaxedLasso_ROC.rds")
-# models.lasso.relaxedLasso.ROC <- readRDS("models/models_lasso_relaxedLasso_ROC.rds")
+
+# calcuate AUC for different folds
+ls <- ls_cvAUC(models.lasso.relaxedLasso)
+out <- cvAUC(ls$predictions, ls$labels)
 
 
-extractPredictions <- function(data){
-  lapply(1:10, function(x){
-    tmp <- sapply(data[[x]], '[', 'predictions') 
-    bind_rows(tmp)
-    })
-}
-
-test <- extractPredictions(models.lasso.relaxedLasso.ROC)
-
-roc.test <- bind_rows(test)
-
-plot(roc(roc.test$obs, roc.test$pred.ja), print.auc = T)
+#Plot CV AUC
+plot(out$perf, col="grey82", lty=3, main="10-fold CV AUC (repeated 10 times)")
+plot(out$perf, col="blue", avg="vertical",add =T)
+abline(0,1, col = "red", lty = 2)
 
 
 
-calc.model.metrics.2 <- function(x.train, y.train, x.test, y.test, train.method = "glmnet", cv.method = "repeatedcv", number = 10, repeats = 5, metric = "ROC", tuneGrid){
-  
-  # define ctrl function
-  cctrl1 <- trainControl(method=cv.method, number=number,repeats = repeats, returnResamp="all",savePredictions = T, 
-                         classProbs=TRUE, summaryFunction=twoClassSummary)
-  
-  # run glmnet model
-  md <- train(x.train, y.train, method = train.method,preProcess = c("center","scale"), 
-              trControl = cctrl1,metric = metric,tuneGrid = tuneGrid)
-  
-  # obtain cv AUC of training folds
-  ci_cv <- ci.cv.AUC.lasso(md)
-  
-  # train coefs
-  feat <- coef(md$finalModel, md$finalModel$lambdaOpt)
-  
-  # obtain index from max metric
-  opt <- md$results[which(md$results$lambda == md$finalModel$lambdaOpt),]
-  
-  # predict
-  pred <- predict(md, x.test, type="raw")
-  
-  # object to return
-  res <- list(
-    predictions = data.frame(pred.ja = predict(md2, x.test, type="prob")$ja, obs = y.test),
-    coefficients = rownames_to_column(data.frame(vals = feat[feat[,1] != 0, 1][-1]),"coefs"),
-    train.metrics = opt[which(opt$ROC == max(opt$ROC)),],
-    train.cv = data.frame(cvAUC = ci_cv$cvAUC,
-                          se = ci_cv$se,
-                          lower = ci_cv$ci[1],
-                          upper = ci_cv$ci[2]),
-    test.metrics = data.frame(AUC = auc(roc(y.test, predict(md, x.test, type="prob")[,1])),
-                              Sens = sensitivity(y.test, pred)  ,
-                              Spec = specificity(y.test, pred))
-  )
-  
-  return(res)
-}
 
 
 
-ind <- createDataPartition(y, p =.8) %>% .$Resample1
-
-x.train <- x[ind,]
-x.test <- x[-ind,]
-y.train <- y[ind]
-y.test <- y[-ind]
-
-set.seed(23)
-md2 <- train(x.train, y.train, method = "glmnet",trControl = cctrl1,  metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)), preProcess= c("center", "scale"))
-pred <- predict(md2, x.test, type="prob")
-obs <- y.test
-
-roc(y.test, predict(md2, x.test, type="prob")[,1])
-
-pred <- predict(md2, x.test, type="raw")
-obs <- y.test
-sensitivity(obs,pred)
-specificity(obs,pred)
 
 
 
-sensitivity(obs, pred)
-specificity(obs,pred)
-data.frame(pred = pred$ja, obs = obs)
-
-
-extractSensSpec <- function(data){
-  lapply(1:10, function(x){
-    tmp <- sapply(data[[x]], '[', 'test.metrics') 
-    
-  })
-}
-
-pred <- predict(md2, x.test, type="prob")
-obs <- y.test
-
-mean_roc <- function(data, cutoffs = seq(from = 0, to = 1, by = 0.1)) {
-  map_df(cutoffs, function(cp) {
-    out <- cutpointr(data = data, x = pred, class = obs,
-                     subgroup = Sample, method = oc_manual, cutpoint = cp,
-                     pos_class = "neg", direction = ">=")
-    data.frame(cutoff = cp, 
-               sensitivity = mean(out$sensitivity),
-               specificity = mean(out$specificity))
-  })
-}
 
 
 
-library(cutpointr)
-
-### define cutpoints and calculate TPR and FPR to plot ROC curve
 
 
 
-ggplot(roc,aes(FPR,TPR))+geom_line(size = 2, alpha = 0.7)+
-  labs(title= "ROC curve", 
-       x = "False Positive Rate (1-Specificity)", 
-       y = "True Positive Rate (Sensitivity)")
+
+
+
+
+
 
 # simple logistic regression (Not recommended when features have been chosen by LASSO or elastic net regularization)
 logistic <- glm(Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`,data=dat3, family="binomial")

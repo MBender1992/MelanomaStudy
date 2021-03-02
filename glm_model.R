@@ -60,7 +60,7 @@ dat_fct$BRAF <- NULL # highly correlated with prior BRAF therapy and therefore r
 
 #####################################
 ## 
-## 1.a Imputation of missing values
+## 1.a Impute missing values
 ##
 #####################################
 
@@ -136,16 +136,26 @@ dat_miR <- train.EDA %>%
 # draw histograms for all miRNAs
 miR_hist <- dat_miR %>% 
   ggplot(aes(expression)) +
-  geom_histogram() +
-  facet_wrap(~miRNA, scales = "free")
+  geom_histogram(color = "black", fill = "grey") +
+  facet_wrap(~miRNA, scales = "free") + 
+  theme_bw()
+
+# png("miRNA_histogram.png", units="in", width=12, height=8, res=1200)
+# miR_hist
+# dev.off()
+
 
 # draw qqplots for all miRNAs
 miR_qq <- dat_miR %>% 
   ggplot(aes(sample = expression)) +
   geom_qq() +
   geom_qq_line() +
-  facet_wrap(~miRNA, scales = "free")
+  facet_wrap(~miRNA, scales = "free")+
+  theme_bw()
 
+# png("miRNA_qq.png", units="in", width=12, height=8, res=1200)
+# miR_qq
+# dev.off()
 
 
 # draw histograms for all miRNAs log-transformed

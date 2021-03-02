@@ -96,7 +96,8 @@ load_melanoma_data <- function(){
     select(-Vorbehandlung)
 }
 
-dat <- load_melanoma_data()
+dat <- load_melanoma_data() %>% 
+  mutate(Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes")))
 dat
 ```
 
@@ -110,7 +111,7 @@ setDT(dat_table1)
 # define which factors to display in table
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
+dat_table1$Responder <- factor(dat_table1$Responder, levels = c("no", "yes",2) , labels = c("no", "yes","P-value"))
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$brainMet <- factor(dat_table1$brainMet, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
@@ -176,8 +177,7 @@ table1(~ Alter + BRAF + prior_BRAF_therapy + Stadium + miRExpAssess + adjuvant_I
 dat_serum_markers_tidy <- dat %>%
   select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
   gather(serum_marker, value,-c(ID, Responder,Baseline)) %>%
-  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value)),
-         Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes"))) %>% 
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) %>% 
   filter(!is.na(log_val)) 
 
 # plot 4 markers in separate plots and calculate statistics
@@ -196,8 +196,8 @@ plot_serum_markers$stat_test_results
 ```{r, message = FALSE}
 # tidy miRNA data.....................................................................................................
 dat_miRNA_tidy <- dat %>% 
-  # only use data where miRNA data was measured 
-  filter(miRExpAssess == 1) %>%
+  # only use data where miRNA data was measured and responder status is known
+  filter(miRExpAssess == 1 & !is.na(Responder)) %>%
   gather(miRNA, expression, contains("hsa")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
   mutate(log_exp = log2(expression))
@@ -217,7 +217,192 @@ plot_miRNA$stat_test_results
 
 
 
-# 3 ROC Analyse
+# 3 Modelling process
+
+The initial data was filtered to only keep rows with data for immunotherapy response and miRNA expression resulting in n = 61 for the modelling process. 
+Each categorical variable was checked for enough elements in each group when split by immunotherapy response to remove features with high uncertainty (a model using e.g. ECOG containing 2 patients with immunotherapy response and ECOG 2 and 4 patients without immunotherapy and ECOG 2 will be rather uninformative as this variable adds noise instead of useful information). On top of that breslow thickness and BRAF status were dropped from the analysis as the former is highly correlated with the AJCC stage and included in that variable and the latter is highly correlated with prior anti-BRAF treatment (which is a more useful variable as it is known, that patients with a prior BRAF therapy have worse immunotherapy response).
+
+```{r}
+#####################################
+## 
+## 1.Data preprocessing
+##
+#####################################
+
+# filter data to keep only rows with data for immunotherapy response and miRNA expression and transform categorical variables to factors
+dat_fct <- dat %>%
+  filter(miRExpAssess == 1 & !is.na(Responder)) %>% # n = 61
+  select(-c(TRIM_PDL1_Expression , miRExpAssess, therapy_at_blood_draw)) %>%
+  mutate( across(c(Responder, Stadium, Baseline, BRAF, ECOG, subtype, localization,
+                   sex, brainMet, adjuvant_IFN, organsInvolved, nras, prior_BRAF_therapy), as.factor)) 
+
+# check each factor for enough elements when split by responder
+xtabs(~ Responder + Stadium, data=dat_fct) 
+xtabs(~ Responder + BRAF, data=dat_fct)
+xtabs(~ Responder + Baseline, data=dat_fct)
+xtabs(~ Responder + ECOG, data=dat_fct) # not enough samples in ECOG2
+xtabs(~ Responder + subtype, data=dat_fct) # too many groups with few samples
+xtabs(~ Responder + localization, data=dat_fct) # too many groups with few samples
+xtabs(~ Responder + sex, data=dat_fct)
+xtabs(~ Responder + brainMet, data=dat_fct)
+xtabs(~ Responder + adjuvant_IFN, data=dat_fct)
+xtabs(~ Responder + organsInvolved, data=dat_fct) # too few observations
+xtabs(~ Responder + nras, data=dat_fct) # too few observations
+xtabs(~ Responder + prior_BRAF_therapy, data=dat_fct)
+
+# remove columns that yield high uncertainty
+dat_fct$ECOG <- NULL
+dat_fct$subtype <- NULL
+dat_fct$localization <- NULL
+dat_fct$nras <- NULL
+dat_fct$Baseline <- NULL
+dat_fct$ID <- NULL
+dat_fct$organsInvolved <- NULL
+dat_fct$breslow_thickness_mm <- NULL # included in stage variable
+dat_fct$BRAF <- NULL # highly correlated with prior BRAF therapy and therefore rather adds noise to the model
+
+```
+
+The dataset contained several variables with missing values. To balance uncertainty introduced by replacing missing values and keeping important variables 
+variables with less than 20 % missing values were kept in the analysis and missing values were imputed using a random forest algorithm from the missForest package in R. 
+
+```{r}
+#####################################
+## 
+## 1.a Impute missing values
+##
+#####################################
+
+# detect percentage of NAs in each column
+NAs <- sapply(dat_fct, function(df){
+  sum(is.na(df) ==TRUE)/length(df);
+})
+
+# remove columns with more than 20 % NAs
+dat_fct <- dat_fct[, -which(NAs > 0.2)]
+
+# convert factor columns to numerical 
+dat_fct$Stadium <- ifelse(dat_fct$Stadium == "II", 2,ifelse(dat_fct$Stadium == "III", 3, 4))
+dat_fct$sex <- ifelse(dat_fct$sex == "m", 1, 0)
+dat_fct$brainMet <- ifelse(dat_fct$brainMet == "ja", 1, 0)
+dat_fct$prior_BRAF_therapy <- parse_number(as.character(dat_fct$prior_BRAF_therapy))
+
+# impute missing values with random forest algorithm
+set.seed(25)
+dat_imp <- dat_fct %>% 
+  select_if(is.numeric) %>%
+  as.data.frame() %>%
+  missForest() %>%
+  .$ximp %>%
+  # replace calculated probabilities by the factor
+  mutate(Stadium = round(Stadium), 
+         Alter = round(Alter), 
+         brainMet = ifelse(brainMet > 0.5, 1,0), 
+         prior_BRAF_therapy = ifelse(prior_BRAF_therapy > 0.5, 1, 0))
+
+# replace numerical values by factor for encoding later
+dat_imp$sex <- factor(dat_imp$sex, levels = c(0,1), labels = c("w", "m"))
+dat_imp$brainMet <- factor(dat_imp$brainMet, levels = c(0,1), labels = c("no", "yes"))
+dat_imp$prior_BRAF_therapy  <- factor(dat_imp$prior_BRAF_therapy, levels = c(0,1), labels = c("no", "yes"))
+
+# replacing NAs with imputed values
+dat_fct$Stadium <- dat_imp$Stadium
+dat_fct$S100 <- dat_imp$S100
+dat_fct$Alter<- dat_imp$Alter
+dat_fct$brainMet <- dat_imp$brainMet
+dat_fct$prior_BRAF_therapy <- dat_imp$prior_BRAF_therapy
+dat_fct$sex <- dat_imp$sex
+```
+
+
+To inspect the data and underlying structure the data was split randomly into training and test set in a 70/30 ratio for explorative data analysis. (This split ensured that decisions based on EDA were less than biased than with using the whole dataset).
+
+
+```{r}
+#####################################
+##
+##  2. Modeling process  
+##
+#####################################
+
+# define test and training set
+set.seed(123)
+ind.train <- createDataPartition(dat_fct$Responder, p = 0.7, list = FALSE)
+
+train.EDA  <- dat_fct[ind.train, ] # n = 43
+test.EDA <- dat_fct[-ind.train, ] # n = 18
+
+#####################################
+##
+##  2.a EDA on training set (to avoid drawing conclusions including the test set)
+##
+#####################################
+
+# change data structure for ggplot
+dat_miR <- train.EDA %>% 
+  select(contains("mir")) %>% 
+  gather("miRNA", "expression")
+
+# draw histograms for all miRNAs
+miR_hist <- dat_miR %>% 
+  ggplot(aes(expression)) +
+  geom_histogram(color = "black", fill = "grey") +
+  facet_wrap(~miRNA, scales = "free") + 
+  theme_bw()
+
+# draw qqplots for all miRNAs
+miR_qq <- dat_miR %>% 
+  ggplot(aes(sample = expression)) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~miRNA, scales = "free")+
+  theme_bw()
+```
+![**Fig. 3: Histogram of miRNAs** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_s_histogram.png)
+
+
+
+
+
+```{r}
+# draw histograms for all miRNAs log-transformed
+miR_hist_log <- dat_miR %>% 
+  ggplot(aes(log(expression))) +
+  geom_histogram() +
+  facet_wrap(~miRNA, scales = "free")
+
+# draw qqplots for all miRNAs log-transformed
+miR_qq_log <- dat_miR %>% 
+  ggplot(aes(sample = log(expression))) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~miRNA, scales = "free")
+
+## log-transforming miRNA expression improves approximation to normality and gene expression data is known to be log-normal distributed 
+## log-transformed miRNA values were used for ML
+
+# histogram of numerical variables that are not miRNAs
+par(mfrow = c(2,4))
+par(mar=c(0.5, 4.5, 0.5, 0.5))
+
+# original expression values
+hist(train.data$LDH)
+hist(train.data$Eosinophile)
+hist(train.data$S100)
+hist(train.data$CRP)
+
+# log-transformed expression values
+hist(log(train.data$LDH))
+hist(log(train.data$Eosinophile))
+hist(log(train.data$S100))
+hist(log(train.data$CRP))
+```
+
+
+
+
+
+
 Guideline: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5217944/
 
 Glm modeling mit glm und Koeffizienten oder glmnet? 

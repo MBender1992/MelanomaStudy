@@ -218,6 +218,7 @@ plot_miRNA$stat_test_results
 
 
 # 3 Modelling process
+## 3.1 Data preprocessing and EDA
 
 The initial data was filtered to only keep rows with data for immunotherapy response and miRNA expression resulting in n = 61 for the modelling process. 
 Each categorical variable was checked for enough elements in each group when split by immunotherapy response to remove features with high uncertainty (a model using e.g. ECOG containing 2 patients with immunotherapy response and ECOG 2 and 4 patients without immunotherapy and ECOG 2 will be rather uninformative as this variable adds noise instead of useful information). On top of that breslow thickness and BRAF status were dropped from the analysis as the former is highly correlated with the AJCC stage and included in that variable and the latter is highly correlated with prior anti-BRAF treatment (which is a more useful variable as it is known, that patients with a prior BRAF therapy have worse immunotherapy response).
@@ -319,9 +320,10 @@ To inspect the data and underlying structure the data was split randomly into tr
 
 
 ```{r}
+
 #####################################
 ##
-##  2. Modeling process  
+##  1.b EDA on training set (to avoid drawing conclusions including the test set)
 ##
 #####################################
 
@@ -332,11 +334,7 @@ ind.train <- createDataPartition(dat_fct$Responder, p = 0.7, list = FALSE)
 train.EDA  <- dat_fct[ind.train, ] # n = 43
 test.EDA <- dat_fct[-ind.train, ] # n = 18
 
-#####################################
-##
-##  2.a EDA on training set (to avoid drawing conclusions including the test set)
-##
-#####################################
+
 
 # change data structure for ggplot
 dat_miR <- train.EDA %>% 
@@ -358,11 +356,11 @@ miR_qq <- dat_miR %>%
   facet_wrap(~miRNA, scales = "free")+
   theme_bw()
 ```
-![**Fig. 3: Histogram of miRNAs** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_s_histogram.png)
+![**Fig. 3: Histogram of miRNA epression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_histogram.png)
 
-![**Fig. 4: qqplot of miRNAs** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_s_qq.png)
+![**Fig. 4: qqplot of miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq.png)
 
-
+Some samples show heavy tailed distributions (e.g.miR-101, miR-205, miR-9). As expression values follow a log-normal distribution miRNA data has been log-transformed to account for this fact. 
 
 
 ```{r}
@@ -381,27 +379,49 @@ miR_qq_log <- dat_miR %>%
 
 ## log-transforming miRNA expression improves approximation to normality and gene expression data is known to be log-normal distributed 
 ## log-transformed miRNA values were used for ML
+```
 
+![**Fig. 5: Histogram of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_hist_log.png)
+
+![**Fig. 6: qqplot of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq_log.png)
+
+
+```{r}
 # histogram of numerical variables that are not miRNAs
 par(mfrow = c(2,4))
 par(mar=c(0.5, 4.5, 0.5, 0.5))
 
 # original expression values
-hist(train.data$LDH)
-hist(train.data$Eosinophile)
-hist(train.data$S100)
-hist(train.data$CRP)
+hist(train.data$LDH, main = "LDH")
+hist(train.data$Eosinophile, main = "Eosinophile")
+hist(train.data$S100, main = "S100")
+hist(train.data$CRP, main = "CRP")
 
 # log-transformed expression values
-hist(log(train.data$LDH))
-hist(log(train.data$Eosinophile))
-hist(log(train.data$S100))
-hist(log(train.data$CRP))
+hist(log(train.data$LDH), main = "log-transformed LDH")
+hist(log(train.data$Eosinophile), main = "log-transformed Eosinophile")
+hist(log(train.data$S100), main = "log-transformed S100")
+hist(log(train.data$CRP), main = "log-transformed CRP")
 ```
 
+Log-transformation improved the approximation of a normal distribution also in serum markers, thus miRNA expression and serum marker levels were log-transformed in the whole dataset.
 
 
+```{r}
+#####################################
+##
+## 1.c log-transformation 
+##
+#####################################
 
+# transform the whole dataset
+tmp <- dat_fct %>% select(where(is.numeric))
+fctrs <- dat_fct %>% select(!where(is.numeric))
+dat_log <- data.frame(cbind(log(tmp+1), fctrs)) %>% 
+  mutate(Responder = factor(Responder, levels = c("nein", "ja")))
+```
+
+## 3.2 Lasso Regression
 
 
 Guideline: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5217944/

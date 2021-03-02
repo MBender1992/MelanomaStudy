@@ -164,12 +164,22 @@ miR_hist_log <- dat_miR %>%
   geom_histogram() +
   facet_wrap(~miRNA, scales = "free")
 
+# png("miRNA_histogram_log.png", units="in", width=12, height=8, res=1200)
+# miR_hist_log
+# dev.off()
+
+
 # draw qqplots for all miRNAs log-transformed
 miR_qq_log <- dat_miR %>% 
   ggplot(aes(sample = log(expression))) +
   geom_qq() +
   geom_qq_line() +
   facet_wrap(~miRNA, scales = "free")
+
+# png("miRNA_qq_log.png", units="in", width=12, height=8, res=1200)
+# miR_qq_log
+# dev.off()
+
 
 ## log-transforming miRNA expression improves approximation to normality and gene expression data is known to be log-normal distributed 
 ## log-transformed miRNA values were used for ML
@@ -179,22 +189,22 @@ par(mfrow = c(2,4))
 par(mar=c(0.5, 4.5, 0.5, 0.5))
 
 # original expression values
-hist(train.data$LDH)
-hist(train.data$Eosinophile)
-hist(train.data$S100)
-hist(train.data$CRP)
+hist(train.data$LDH, main = "LDH")
+hist(train.data$Eosinophile, main = "Eosinophile")
+hist(train.data$S100, main = "S100")
+hist(train.data$CRP, main = "CRP")
 
 # log-transformed expression values
-hist(log(train.data$LDH))
-hist(log(train.data$Eosinophile))
-hist(log(train.data$S100))
-hist(log(train.data$CRP))
+hist(log(train.data$LDH), main = "log-transformed LDH")
+hist(log(train.data$Eosinophile), main = "log-transformed Eosinophile")
+hist(log(train.data$S100), main = "log-transformed S100")
+hist(log(train.data$CRP), main = "log-transformed CRP")
 
 ## lab parameters were also used in log-transformed space
 
 #####################################
 ##
-## 2.b log-transformation and conversion of factors to dummy variables
+## 2.b log-transformation 
 ##
 #####################################
 
@@ -204,9 +214,6 @@ fctrs <- dat_fct %>% select(!where(is.numeric))
 dat_log <- data.frame(cbind(log(tmp+1), fctrs)) %>% 
   mutate(Responder = factor(Responder, levels = c("nein", "ja")))
 
-
-#
-y <- dat_log$Responder
 
 
 #####################################
@@ -222,6 +229,8 @@ y <- dat_log$Responder
 ##
 #####################################
 
+#
+y <- dat_log$Responder
 
 # define parameters for 10 fold cross validation repeated 10 times
 k <- 10

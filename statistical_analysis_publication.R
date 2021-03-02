@@ -105,7 +105,8 @@ dat_miRNA_tidy <- dat %>%
   filter(miRExpAssess == 1 & !is.na(Responder)) %>%
   gather(miRNA, expression, contains("hsa")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
-  mutate(log_exp = log2(expression))
+  mutate(log_exp = log2(expression),
+         Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes")))
 
 # Plot miRNA data
 plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05, p.adj = "fdr", 

@@ -26,17 +26,24 @@ This document serves as a summary of the data analysis for the melanoma study us
 ### Loading of required packages
 
 ```{r, message = FALSE}
-# load packages
+# load packages "add publications of the respective packages"
 
 # data wrangling
 library(tidyverse)
 library(data.table)
+library(DescTools)
+library(pbapply)
+library(missForest)
 # data visualization
 library(ggpubr)
 # statistical analysis
 library(rstatix)
 # summary table
 library(table1)
+# modelling/machine learning
+library(caret) 
+library(pROC)
+library(cvAUC)
 # necessary to load data from github with "source_url"
 library(devtools)
 
@@ -83,7 +90,7 @@ load_melanoma_data <- function(){
   # join both tables
   right_join(dat_miR_trans,dat_meta, by="ID") %>% 
     filter(!ID %in% c(1,2)) %>% # no data available for patient 1 and 2 but still part of the source table
-    mutate(miRExpAssess = ifelse(is.na(rowSums(.[,which(str_detect(names(.),"mir"))])), 0,1))  %>%# if no miRNA expression has been measure fill in 0
+    mutate(miRExpAssess = ifelse(is.na(rowSums(.[,which(str_detect(names(.),"mir"))])), 0,1))  %>%# if no miRNA expression has been measured fill in 0
     arrange(ID) %>% 
     mutate(prior_BRAF_therapy = ifelse(str_detect(Vorbehandlung,"Mek|Dabra|Tafinlar|Tefinlar|MEK|BRAF|Vemu|[zZ]ellboraf"), 1, 0)) %>%
     select(-Vorbehandlung)
@@ -93,7 +100,7 @@ dat <- load_melanoma_data()
 dat
 ```
 
-To gain insights of the different patients a summary table was generated showing several different features split by(Table 1). 
+To gain insights of the different patients a summary table was generated showing several different features split by immunotherapy response (Table 1). 
 
 
 ```{r, message = FALSE}

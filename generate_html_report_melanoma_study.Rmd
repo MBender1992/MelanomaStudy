@@ -51,7 +51,7 @@ miRNA expression was measured with the Fireplex Immunoassay (Abcam) and normaliz
 
 ```{r, message = FALSE}
 load_melanoma_data <- function(){
-  require(devtools) # to make sure this function works if the devtools package is not loaded previously
+  require(devtools)
   
   url_miR <- "https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Data/miRNA_Expression_Fireplex_Melanoma_Study.csv" 
   url_meta <- "https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Data/Metadata_Melanoma_Study.csv" 
@@ -63,14 +63,12 @@ load_melanoma_data <- function(){
     select(-c(therapy_start, Abnahmedatum)) %>%
     mutate(TRIM_PDL1_Expression = str_replace_all(TRIM_PDL1_Expression,"\\++","+")) %>% 
     mutate(TRIM_PDL1_Expression = ifelse(TRIM_PDL1_Expression == "o", NA,TRIM_PDL1_Expression)) %>%
-    # set Stadium to uppercase letters and filter the general stages without substages "A", "B", "C"
     mutate(Stadium = toupper(Stadium)) %>%
     mutate(Stadium = str_extract(Stadium, "^[IV]{1,3}")) %>%
     mutate(BRAF = str_replace_all(BRAF, "\\.", "")) %>% 
-    # convert thickness to numeric
     mutate(breslow_thickness_mm = parse_number(breslow_thickness_mm))
- 
-  # change ID column to uniform capital letters for later filtering
+  
+    # change ID column to uniform capital letters for later filtering
   names(dat_miR) <- c("miRNA", toupper(names(dat_miR)[-1]))
   
   # define IDs to be dropped for further analyses
@@ -79,18 +77,16 @@ load_melanoma_data <- function(){
   
   # wide miR data (78 patients with miRNA data)
   dat_miR_trans <- transpose_dataframe(colnames = c("ID",dat_miR$miRNA), data = dat_miR) %>%
-    #drop duplicate patient data 
-    filter(!ID %in% controls & !ID %in% duplicates) %>%   
-    #convert ID to numeric
-    mutate(ID = parse_number(ID))
+    filter(!ID %in% controls & !ID %in% duplicates) %>%   #drop duplicate patient data 
+    mutate(ID = parse_number(ID)) #convert ID to numeric
   
   # join both tables
   right_join(dat_miR_trans,dat_meta, by="ID") %>% 
-    # no data available for patient 1 and 2 but still part of the source table
-    filter(!ID %in% c(1,2)) %>% 
-    # if no miRNA expression has been measure fill in 0
-    mutate(miRExpAssess = ifelse(is.na(rowSums(.[,which(str_detect(names(.),"mir"))])), 0,1))  %>%
-    arrange(ID)
+    filter(!ID %in% c(1,2)) %>% # no data available for patient 1 and 2 but still part of the source table
+    mutate(miRExpAssess = ifelse(is.na(rowSums(.[,which(str_detect(names(.),"mir"))])), 0,1))  %>%# if no miRNA expression has been measure fill in 0
+    arrange(ID) %>% 
+    mutate(prior_BRAF_therapy = ifelse(str_detect(Vorbehandlung,"Mek|Dabra|Tafinlar|Tefinlar|MEK|BRAF|Vemu|[zZ]ellboraf"), 1, 0)) %>%
+    select(-Vorbehandlung)
 }
 
 dat <- load_melanoma_data()
@@ -109,10 +105,11 @@ dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
 dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
-dat_table1$Hirnmetastase <- factor(dat_table1$Hirnmetastase, levels = c("nein", "ja") , labels = c("no", "yes"))
+dat_table1$brainMet <- factor(dat_table1$brainMet, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))
 dat_table1$ECOG <- factor(dat_table1$ECOG, levels = c(0,1,2) , labels = c("0", "1", "2"))
 dat_table1$Stadium <- factor(dat_table1$Stadium, levels = c("II", "III","IV") , labels = c("II", "III","IV"))
+dat_table1$prior_BRAF_therapy <- factor(dat_table1$prior_BRAF_therapy, levels = c(0, 1) , labels = c("no", "yes"))
 
 
 # define labels for the table
@@ -126,9 +123,11 @@ label(dat_table1$ECOG)      <- "ECOG"
 label(dat_table1$breslow_thickness_mm)      <- "Breslow thickness (mm)" # change to double
 label(dat_table1$subtype) <- "Subtype"
 label(dat_table1$localization) <- "Localization"
-label(dat_table1$Hirnmetastase) <- "Brain metastasis"
+label(dat_table1$brainMet) <- "Brain metastasis"
 label(dat_table1$miRExpAssess) <- "miRNA expression measured"
 label(dat_table1$adjuvant_IFN) <- "Received adjuvant IFN treatment"
+label(dat_table1$prior_BRAF_therapy) <- "Received prior anti-BRAF therapy"
+
 
 # function to display p-values  
 rndr <- function(x, name, ...) {
@@ -156,7 +155,7 @@ rndr.strat <- function(label, n, ...) {
 # define text for footnote
 fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
 
-table1(~ Alter + BRAF + Stadium + miRExpAssess + adjuvant_IFN + Hirnmetastase + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
+table1(~ Alter + BRAF + prior_BRAF_therapy + Stadium + miRExpAssess + adjuvant_IFN + brainMet + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
        data=dat_table1, droplevels=F, render=rndr, render.strat=rndr.strat, footnote = fn)
 
 ```
@@ -223,4 +222,6 @@ relaxed Lasso: Meinshausen 2007
 https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
 
 Using nested cv as it closely resembles test on independent validation set (https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-7-91)
+and leads to less bias than traditional cv: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1397873/
 
+discussion why we used this challenging dataset: Papr: A feature agnostic approach for glaucoma detection in OCT volumes

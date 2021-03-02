@@ -360,6 +360,7 @@ miR_qq <- dat_miR %>%
 ```
 ![**Fig. 3: Histogram of miRNAs** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_s_histogram.png)
 
+![**Fig. 4: qqplot of miRNAs** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_s_qq.png)
 
 
 

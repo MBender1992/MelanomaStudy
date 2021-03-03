@@ -5,7 +5,6 @@ library(missForest)
 library(tidyverse)
 library(devtools)
 library(caret)
-library(doParallel)
 library(pROC)
 library(DescTools)
 library(pbapply)
@@ -21,12 +20,10 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 #####################################
 
 # load data with custom function for melanoma data only for Responders
-dat <- load_melanoma_data() %>% 
-  filter(!is.na(Responder)) # n = 81
-data.frame(dat$prior_BRAF_therapy)
+dat <- load_melanoma_data()
 
 dat_fct <- dat %>%
-  filter(miRExpAssess == 1) %>%
+  filter(miRExpAssess == 1 & !is.na(Responder)) %>%
   select(-c(TRIM_PDL1_Expression , miRExpAssess, therapy_at_blood_draw)) %>%
   mutate( across(c(Responder, Stadium, Baseline, BRAF, ECOG, subtype, localization,
                    sex, brainMet, adjuvant_IFN, organsInvolved, nras, prior_BRAF_therapy), as.factor)) 
@@ -213,8 +210,7 @@ hist(log(train.data$CRP), main = "log-transformed CRP")
 # transform the whole dataset
 tmp <- dat_fct %>% select(where(is.numeric))
 fctrs <- dat_fct %>% select(!where(is.numeric))
-dat_log <- data.frame(cbind(log(tmp+1), fctrs)) %>% 
-  mutate(Responder = factor(Responder, levels = c("nein", "ja")))
+dat_log <- data.frame(cbind(log(tmp+1), fctrs)) 
 
 
 
@@ -545,7 +541,7 @@ model.formula <- as.formula(paste("Responder~",paste(feat.final, collapse ="+"))
 x <- model.matrix(model.formula, dat_log)
 y <- dat_log$Responder
 
-set.seed(849)
+set.seed(27)
 final <- train(x, y, method = "glmnet",preProcess = c("center","scale"), 
       trControl = cctrl1,metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
 

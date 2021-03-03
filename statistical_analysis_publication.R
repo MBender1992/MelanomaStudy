@@ -15,7 +15,6 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 dat <- load_melanoma_data() # n = 101 patients
 
 
-
 #####################################
 #                                   #
 #         1. patient table          #
@@ -57,7 +56,7 @@ label(dat_table1$prior_BRAF_therapy) <- "Received prior anti-BRAF therapy"
 # define text for footnote
 fn <- "Statistical test: Unequal variance t-test (welch's t-test) for numerical data and chi² test for categorical data. Raw p-values are shown."
 
-table1(~ Alter + BRAF + prior_BRAF_therapy + Stadium + miRExpAssess + adjuvant_IFN + brainMet + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
+table1(~ Alter + BRAF +  prior_BRAF_therapy + Stadium + miRExpAssess + adjuvant_IFN + brainMet + sex + ECOG + breslow_thickness_mm + subtype + localization | Responder,
        data=dat_table1, droplevels=F , render=rndr, render.strat=rndr.strat, footnote = fn)
 
 

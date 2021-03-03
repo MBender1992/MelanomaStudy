@@ -28,7 +28,7 @@ setDT(dat_table1)
 # define which factors to display in table
 dat_table1$sex <- factor(dat_table1$sex, levels = c("m", "w") , labels = c("Male", "Female"))
 dat_table1$miRExpAssess <- factor(dat_table1$miRExpAssess, levels = c(0, 1) , labels = c("no", "yes"))
-dat_table1$Responder <- factor(dat_table1$Responder, levels = c("nein", "ja",2) , labels = c("no", "yes","P-value"))
+dat_table1$Responder <- factor(dat_table1$Responder, levels = c("no", "yes",2) , labels = c("no", "yes","P-value"))
 dat_table1$adjuvant_IFN <- factor(dat_table1$adjuvant_IFN, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$brainMet <- factor(dat_table1$brainMet, levels = c("nein", "ja") , labels = c("no", "yes"))
 dat_table1$subtype <- factor(dat_table1$subtype, levels = c("cutanes Melanom", "Schleimhautmelanom") , labels = c("cutaneous", "mucosal"))

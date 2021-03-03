@@ -105,7 +105,7 @@ dat
 To gain insights of the different patients a summary table was generated showing several different features split by immunotherapy response (Table 1). 
 
 
-```{r, message = FALSE}
+```{r, message = FALSE, warning = FALSE}
 dat_table1 <- dat
 setDT(dat_table1)
 
@@ -629,7 +629,7 @@ ggplot(data = feat.freq.relaxed.miRNA, aes(coef, freq)) +
 
 The final model tested was a combined model of all the features with a similar approach to 3.2.3 for feature selection. First a model with all features was fit, important features were extracted and used as input for the final model. 
 
-####3.2.4a Feature selection with LASSO
+#### 3.2.4a Feature selection with LASSO
 
 ```{r, fig.width= 8, fig.height=8}
 # models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)

@@ -4,6 +4,7 @@ output:
   html_notebook:
     theme: united
     toc: yes
+    fig_caption: yes
 author: Marc Bender
 ---
 
@@ -56,7 +57,7 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 
 miRNA expression was measured with the Fireplex Immunoassay (Abcam) and normalized on the 12 most stable miRNAs (?). Other parameters were assessed in the clinical workflow of patient treatment. To combine miRNA expression results and patient metadata in a reproducible way, data was ingested using the following function 
 
-```{r, message = FALSE}
+```{r, message = FALSE, warning = FALSE}
 load_melanoma_data <- function(){
   require(devtools)
   
@@ -218,6 +219,20 @@ plot_miRNA$stat_test_results
 
 
 # 3 Modelling process
+
+In order to predict immunotherapy outcome different machine learning models were developed using various sets of features. The general workflow is depicted in fig. 3. 
+
+![**Fig. 3: Workflow of the modelling process.** Nested cross-validation was employed with 10-fold cv repeated 10 times in the outer loop and 10-fold cv repeated 5 times in the inner loop. The inner loop was used for model optimisation, the outer loop to evaluate the model. ](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/Workflow.png)
+
+Data was preprocessed and nested cross validation (nested cv) was employed as it closely resembles testing the model on an independent validation set (https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-7-91) and leads to less bias than traditional cv (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1397873/). Briefly, data was split into 10 training and test set folds with each fold being used once for testing while the model was built on the remaining 9 folds. This process was repeated 10 times in the outer loop for model evaluation (10-fold cross validation repeated 10 times). In each iteration the 9 folds used for training were subject to further splitting into training and validation set in an inner loop for model optimization (hyperparameter tuning and feature selection unless a predefined set of features was used for the model). 10-fold cross validation repeated 5 times was employed in the inner loop and performance was measured on each validation set with area under the roc curve (AUROC) as performance metric. 95 % confidence intervals (ci) were calculated using the cvAUC package in R for the 50 iterations in the inner loop for each iteration in the outer loop resulting in 100 different ROC estimates with confidence intervals. These ROC estimates and the lower and upper bound of the cis were averaged to get a final ROC estimate of the training process. 
+
+Analogously AUROC was assessed in the outer loop after training the model and applying it to the test set to evaluate generalization of the model. The 100 different ROC estimates obtained from the test set in the outer loop were then used to generate confidence intervals using the package cvAUC. 
+
+Model comparison was conducted using the AUROC obtained in the inner loop as using the AUROC in the outer loop for model selection would lead to overfitting. The feature selection methods are explained in the respective sections describing the individual models. 
+
+LASSO (least absolute shrinkage and selection operator) logistic regression was employed using the glmnet function in the train wrapper of the caret package in R. LASSO regression uses a regularization parameter lambda to shrink uninformative variables towards zero to increase model performance.
+
+
 ## 3.1 Data preprocessing and EDA
 
 The initial data was filtered to only keep rows with data for immunotherapy response and miRNA expression resulting in n = 61 for the modelling process. 
@@ -356,9 +371,9 @@ miR_qq <- dat_miR %>%
   facet_wrap(~miRNA, scales = "free")+
   theme_bw()
 ```
-![**Fig. 3: Histogram of miRNA epression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_histogram.png)
+![**Fig. 4: Histogram of miRNA epression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_histogram.png)
 
-![**Fig. 4: qqplot of miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq.png)
+![**Fig. 5: qqplot of miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq.png)
 
 Some samples show heavy tailed distributions (e.g.miR-101, miR-205, miR-9). As expression values follow a log-normal distribution miRNA data has been log-transformed to account for this fact. 
 
@@ -381,11 +396,11 @@ miR_qq_log <- dat_miR %>%
 ## log-transformed miRNA values were used for ML
 ```
 
-![**Fig. 5: Histogram of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_histogram_log.png)
+![**Fig. 6: Histogram of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_histogram_log.png)
 
 
 
-![**Fig. 6: qqplot of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq_log.png)
+![**Fig. 7: qqplot of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq_log.png)
 
 
 ```{r}
@@ -423,20 +438,362 @@ dat_log <- data.frame(cbind(log(tmp+1), fctrs)) %>%
   mutate(Responder = factor(Responder, levels = c("nein", "ja")))
 ```
 
-## 3.2 Lasso Regression
+## 3.2 Models
+### 3.2.1 Baseline model
 
+The first model was the baseline model using classical clinical parameters connected to melanoma therapy outcome comprising the four serum markers lactate dehydrogenase (LDH), c-reactive protein (CRP), S100 and eosinophile concentration. Other models were to be compared to this model in order to assess superior or inferior predictive abilities. 
+
+The performance of the model in the inner loop (inner cvAUC) for model selection and in the outer loop (outer cvAUC) for model evaluation are shown below with 95 % confidence intervals. Furthermore the feature importance of the respective features is shown in fig. 8. To calculate feature importance the coefficients retained in each iteration of the outer loop were counted and divided by 100 to obtain the relative feature importance in percent. 
+
+```{r}
+# define outcome variable
+y <- dat_log$Responder
+
+# define parameters for 10 fold cross validation repeated 10 times (outer loop)
+k <- 10
+rep <- 10
+
+# define names for the list returned by the function lassoEval
+reps <- paste0("Rep", 1:rep)
+folds <- paste0("Fold", 1:k)
+
+# to reduce running time of the script the model was stored in an rds object for quick loading
+# models.lasso.baseline <- lassoEval("baseline", dat_log, rep = rep, k = k)
+models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
+
+# set names of list elements
+models.lasso.baseline <- setNames(lapply(models.lasso.baseline, setNames, folds), reps)
+
+## confidence interval inner cv.AUC and outer cv.AUC
+ci.baseline <- rbind.model.ci(models.lasso.baseline)
+ci.baseline
+# extract important coefficients
+extract.coefs.baseline <- extractCoefs(models.lasso.baseline) %>% do.call(rbind,.) %>% table() 
+
+# calculate percentages
+feat.freq.baseline <- data.frame(sort(extract.coefs.baseline/100)) %>% 
+  setNames(c("coef", "freq"))
+
+ggplot(data = feat.freq.baseline, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
+  geom_bar(stat = "identity",  color = "black") +
+  coord_flip() +
+  xlab("") +
+  ylab("fraction of cv-models using this feature (relative feature importance)") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+  geom_hline(yintercept = 0.5, lty = 2, color = "red") +
+  scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
+  labs(fill = "frequency")
+
+```
+**Fig. 8: Feature importance of the baseline model.** Features present in more than half of the iterations (indicated by red dashed line) are shown in blue. 
+
+
+
+
+
+
+
+### 3.2.2 Model using sifnificant features
+
+The features used in this model process were the significant features detected previously (see patient table, fig. 1, fig 2), namely:
+
++ LDH
++ CRP
++ S100
++ Eosinophile
++ Age
++ Prior anti-BRAF therapy
++ miR-132-3p
++ miR-137
++ miR-197-3p
++ miR-214-3p
++ miR-514a-3p
+
+
+```{r}
+
+# to reduce running time of the script the model was stored in an rds object for quick loading 
+# models.lasso.signif <- lassoEval("signif", dat_log, rep = rep, k = k)
+models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
+
+# set names of list elements
+models.lasso.signif <- setNames(lapply(models.lasso.signif, setNames, folds), reps)
+
+## confidence interval for the cv.train folds in the inner loop 
+ci.signif <- rbind.model.ci(models.lasso.signif)
+ci.signif
+# extract important coefficients
+extract.coefs.signif <- extractCoefs(models.lasso.signif) %>% do.call(rbind,.) %>% table() 
+
+
+# calculate percentages
+feat.freq.signif <- data.frame(sort(extract.coefs.signif/100)) %>% 
+  setNames(c("coef", "freq"))
+
+
+# plot important features
+ggplot(data = feat.freq.signif, aes(coef, freq)) +
+  geom_bar(stat = "identity",  color = "black", fill = "lightblue") +
+  coord_flip() +
+  xlab("") +
+  ylab("fraction of cv-models using this feature (relative feature importance)") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+  geom_hline(yintercept = 0.5, lty = 2, color = "red") +
+  labs(fill = "frequency")
+```
+**Fig. 9: Feature importance of the significant feature model.** Features present in more than half of the iterations (indicated by red dashed line) are shown in blue. 
+
+
+### 3.2.3 miRNA model 
+
+To reduce noise introduced by uninformative variables a two-step approach similar to the relaxed LASSO as described by Meinshausen (2007) has been chosen to increase performance. Briefly, features were selected in a first LASSO with the expression of all miRNAs as input and important features of this first LASSO (> 50% frequency) were used as input for a second LASSO. This ensures that informative variables are not shrunk to strictly as the majority of noise variables has been eliminated by the first step.
+
+#### 3.2.3.a Feature selection by regular LASSO
+
+```{r, fig.width= 8, fig.height=8}
+
+# to reduce running time of the script the model was stored in an rds object for quick loading 
+# models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = rep, k = k)
+models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
+
+# set names of list elements
+models.lasso.miRNA <- setNames(lapply(models.lasso.miRNA, setNames, folds), reps)
+
+## confidence interval for the cv.train folds in the inner loop 
+ci.miRNA <- rbind.model.ci(models.lasso.miRNA)
+ci.miRNA
+
+# extract important coefficients
+extract.coefs.miRNA <- extractCoefs(models.lasso.miRNA) %>% do.call(rbind,.) %>% table() 
+
+# calculate percentages
+feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>% 
+  setNames(c("coef", "freq"))
+
+# plot important features
+ggplot(data = feat.freq.miRNA, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
+  geom_bar(stat = "identity",  color = "black") +
+  coord_flip() +
+  xlab("") +
+  ylab("fraction of cv-models using this feature (relative feature importance)") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+  geom_hline(yintercept = 0.5, lty = 2, color = "red") +
+  scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
+  labs(fill = "frequency")
+
+```
+**Fig. 10: Feature importance of the miRNA model.** Features present in more than half of the iterations (indicated by red dashed line) are shown in blue. 
+
+
+#### 3.2.3.b Relaxed LASSO
+
+The informative features identified in 3.2.3.a (relative feature importance > 50%) were then used as input for the final miRNA model. 
+
+```{r, fig.width= 6, fig.height=4}
+# extract features from 3.2.3.a
+feat.relaxed.miRNA <-  feat.freq.miRNA[feat.freq.miRNA$freq > 0.5,]
+
+# models.lasso.relaxed.miRNA <- lassoEval("relaxedLassomiRNA", dat_log, rep = 10, k = 10)
+models.lasso.relaxed.miRNA <- readRDS("models/models_lasso_relaxed_miRNA.rds")
+
+# set names of list elements
+models.lasso.relaxed.miRNA <- setNames(lapply(models.lasso.relaxed.miRNA, setNames, folds), reps)
+
+## confidence interval for the cv.train folds in the inner loop 
+ci.relaxed.miRNA <- rbind.model.ci(models.lasso.relaxed.miRNA)
+ci.relaxed.miRNA
+# extract important coefficients
+extract.coefs.relaxed.miRNA <- extractCoefs(models.lasso.relaxed.miRNA) %>% do.call(rbind,.) %>% table() 
+
+# calculate percentages
+feat.freq.relaxed.miRNA <- data.frame(sort(extract.coefs.relaxed.miRNA/100)) %>% 
+  setNames(c("coef", "freq"))
+
+# plot important features
+ggplot(data = feat.freq.relaxed.miRNA, aes(coef, freq)) +
+  geom_bar(stat = "identity",  color = "black", fill = "skyblue") + 
+  coord_flip() +
+  xlab("") +
+  ylab("fraction of cv-models using this feature (relative feature importance)") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+  geom_hline(yintercept = 0.5, lty = 2, color = "red") 
+```
+**Fig. 11: Feature importance of the relaxed miRNA model.** Features present in more than half of the iterations (indicated by red dashed line) are shown in blue. 
+
+
+### 3.2.4 Combined model
+
+The final model tested was a combined model of all the features with a similar approach to 3.2.3 for feature selection. First a model with all features was fit, important features were extracted and used as input for the final model. 
+
+####3.2.4a Feature selection with LASSO
+
+```{r, fig.width= 8, fig.height=8}
+# models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)
+models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
+
+# set names of list elements
+models.lasso.complete <- setNames(lapply(models.lasso.complete, setNames, folds), reps)
+
+## confidence interval for the cv.train folds in the inner loop 
+ci.complete <- rbind.model.ci(models.lasso.complete)
+ci.complete
+# extract important coefficients
+extract.coefs.complete <- extractCoefs(models.lasso.complete) %>% do.call(rbind,.) %>% table() 
+
+# calculate percentages
+feat.freq.complete <- data.frame(sort(extract.coefs.complete/100)) %>% 
+  setNames(c("coef", "freq"))
+
+# plot important features
+ggplot(data = feat.freq.complete, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
+  geom_bar(stat = "identity",  color = "black") +
+  coord_flip() +
+  xlab("") +
+  ylab("fraction of cv-models using this feature (relative feature importance)") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+  geom_hline(yintercept = 0.5, lty = 2, color = "red") +
+  scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
+  labs(fill = "frequency")
+
+```
+
+**Fig. 12: Feature importance of the combined model.** Features present in more than half of the iterations (indicated by red dashed line) are shown in blue. 
+
+####3.2.4b Relaxed LASSO
+
+The features used as input were:
+
++ LDH
++ Age
++ Prior anti-BRAF therapy
++ miR-197-3p
++ miR-514a-3p
++ miR-137
++ miR-30d-5p
+
+```{r, fig.width= 8, fig.height=4}
+# obtain features for relaxed LASSO analysis (features with importance > 0.5, BRAF added manually within the function)
+feat.relaxed <-  feat.freq.complete[feat.freq.complete$freq > 0.5,]
+feat.relaxed <- feat.relaxed[as.character(feat.relaxed$coef) %like any% names(dat_log),]
+
+
+# modelling and evaluation
+# models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
+models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
+
+# set names of list elements
+models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames, folds), reps)
+
+## confidence interval for the cv.train folds in the inner loop 
+ci.relaxedLasso <- rbind.model.ci(models.lasso.relaxedLasso)
+ci.relaxedLasso
+# extract important coefficients
+extract.coefs.relaxedLasso <- extractCoefs(models.lasso.relaxedLasso) %>% do.call(rbind,.) %>% table() 
+
+# calculate percentages
+feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>% 
+  setNames(c("coef", "freq"))
+
+# plot important features
+ggplot(data = feat.freq, aes(coef, freq)) +
+  geom_bar(stat = "identity",  color = "black", fill = "lightblue") +
+  coord_flip() +
+  xlab("") +
+  ylab("fraction of cv-models using this feature (relative feature importance)") +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
+  geom_hline(yintercept = 0.5, lty = 2, color = "red")
+
+```
+**Fig. 13: Feature importance of the relaxed combined model.** Features present in more than half of the iterations (indicated by red dashed line) are shown in blue. 
+
+# 4. Model comparison
+
+The different models were compared for performance on the cvAUC obtained on the validation set in the inner fold. The model with highest inner cvAUC was the best model (see fig. 14). 
+
+```{r}
+# combine data to compare models
+dat_compare <- rbind(complete = ci.complete,
+      relaxedLasso = ci.relaxedLasso,
+      baseline = ci.baseline,
+      signif = ci.signif,
+      miRNA = ci.miRNA,
+      relaxedmiRNA = ci.relaxed.miRNA) %>% 
+  rownames_to_column("tmp") %>%
+  separate(tmp,c("model", "results"), extra = "merge") %>%
+  mutate(model = factor(model),
+         model = reorder(model, cvAUC))
+
+# train inner cv ROC
+ggplot(filter(dat_compare, results == "cv.AUC.inner"), aes(x=model, y=cvAUC)) + 
+  geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.3, size = 1) +
+  geom_point(size = 4, shape = 18, color = "red") +
+  coord_flip() + 
+  theme_bw() + 
+  scale_y_continuous(breaks = seq(0.5, 0.9, 0.05))+
+  ylab("ROC")
+```
+**Fig. 14: Comparison of model performance on validation set (inner cvAUC).** Red squares indicate the average ROC. Errorbars represent 95 % confidence intervals.  
+
+
+The model obtained in 3.2.4b performed best with a ROC of 0.852 (0.807; 0.897), followed by the model using significant features as predictors (ROC: 0.831 (0.784; 0.878)), the relaxed miRNA model (3.2.3b; ROC: 0.800 (0.765; 0.834)) and the baseline model (ROC: 0.743 (0.689; 0.789)). The combined model (ROC: 0. 693 (0.633; 0.752)) and miRNA model (ROC: 0.609 (0.546; 0.673)) without prior feature selection performed the worst due to a high number of noise variables in the dataset. 
+
+The model form 3.2.4b was chosen as the optimal model using this dataset. 
+
+To assess generalizability a ROC curve on the test set in the outer loop was generated for each iteration and an average cvROC curve was also drawn (see fig. 15). 
+
+```{r, fig.width=5, fig.height=5}
+# calcuate AUC for different folds
+ls <- ls_cvAUC(models.lasso.relaxedLasso)
+out <- cvAUC(ls$predictions, ls$labels)
+res <- ci.cvAUC(ls$predictions, ls$labels)
+
+#Plot CV AUC
+plot(out$perf, col="grey82", lty=3, main="10-fold CV AUC (repeated 10 times)")
+plot(out$perf, col="blue", avg="vertical",add =T)
+abline(0,1, col = "red", lty = 2)
+text(0.6, 0.2, paste("cvAUC: ",round(res$cvAUC,3), " (",round(res$ci[1],3),"; ",round(res$ci[2],3),")", sep =""))
+
+```
+**Fig. 15: ROC curve of the performance on the test set (outer cvAUC) for the relaxed combined model (see 3.2.4b).** Grey dotted lines indicate ROC for each iteration (only a few ROC curves as there are a lot of overlaps). Blue line indicates the average ROC curve of all iterations. Red dashed line indicates a random classifier. AUC: area under the curve. 95 % confident intervals of the cvAUC are shown in parentheses). 
+
+
+Inner cvAUC and outer cvAUC show a high overlap, indicating a well trained model which is able to be generally applied to detect immunotherapy outcome in melanoma patients. Eventually, the model has been retrained on the whole dataset for deployment. The ROC of the final model was 0.847 which is the same as the ROC obtained by cross validation in the outer loop. The coefficients of the final model were: 
+
+
+```{r, warning = FALSE}
+feat.final <- names(select(dat_log, c(feat.relaxed$coef, Alter, prior_BRAF_therapy)))
+model.formula <- as.formula(paste("Responder~",paste(feat.final, collapse ="+")))
+
+x <- model.matrix(model.formula, dat_log)
+y <- dat_log$Responder
+
+set.seed(849)
+final <- train(x, y, method = "glmnet",preProcess = c("center","scale"), 
+      trControl = cctrl1,metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+
+# ROC of final model
+final$results[final$results$lambda == final$finalModel$lambdaOpt,]
+
+# coefficients of final model 
+coef(final$finalModel, final$finalModel$lambdaOpt)
+
+```
+
+The table of coefficients shows a positive influence of age and miRNA expression (except miR-197-3p)  and a negative influence of miR-197-3p, LDH and prior anti-BRAF therapy on immunotherapy outcome. NOTE: Numerical variables (except age) were log-transformed, so the coefficients increase/decrease te chance of responding by the coefficients value for each 1 unit increase of the log-transformed values.  
+
+
+Construct a formula to calculate probability? 
 
 Guideline: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5217944/
 
-Glm modeling mit glm und Koeffizienten oder glmnet? 
 
 Explanation of Ridge, Lasso and Elastic Net Regularization
 
-relaxed Lasso: Meinshausen 2007
-
-https://machinelearningmastery.com/nested-cross-validation-for-machine-learning-with-python/
-
-Using nested cv as it closely resembles test on independent validation set (https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-7-91)
-and leads to less bias than traditional cv: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1397873/
 
 discussion why we used this challenging dataset: Papr: A feature agnostic approach for glaucoma detection in OCT volumes

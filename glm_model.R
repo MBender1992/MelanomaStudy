@@ -234,9 +234,13 @@ dat_log <- data.frame(cbind(log(tmp+1), fctrs)) %>%
 #
 y <- dat_log$Responder
 
-# define parameters for 10 fold cross validation repeated 10 times
+# define parameters for 10 fold cross validation repeated 10 times (outer loop)
 k <- 10
 rep <- 10
+
+reps <- paste0("Rep", 1:rep)
+folds <- paste0("Fold", 1:k)
+
 models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.complete, "models/models_lasso_complete.rds")
 # models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
@@ -379,13 +383,13 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
 
 # plot important features
 # ggplot(data = feat.freq, aes(coef, freq)) +
-#   geom_bar(stat = "identity",  color = "black", fill = "lightblue") + 
+#   geom_bar(stat = "identity",  color = "black", fill = "lightblue") +
 #   coord_flip() +
 #   xlab("") +
 #   ylab("fraction of cv-models using this feature (relative feature importance)") +
 #   theme_bw() +
 #   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") +
 #   labs(fill = "frequency")
 
 
@@ -399,7 +403,7 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
 #####################################
 
 #
-models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = 10, k = 10)
+models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.miRNA, "models/models_lasso_miRNA.rds")
 # models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
 
@@ -418,13 +422,13 @@ feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>%
 
 # plot important features
 # ggplot(data = feat.freq.miRNA, aes(coef, freq, fill = ifelse(freq > 0.5, "red", "blue"))) +
-#   geom_bar(stat = "identity",  color = "black") + 
+#   geom_bar(stat = "identity",  color = "black") +
 #   coord_flip() +
 #   xlab("") +
 #   ylab("fraction of cv-models using this feature (relative feature importance)") +
 #   theme_bw() +
 #   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
-#   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
+#   geom_hline(yintercept = 0.5, lty = 2, color = "red") +
 #   scale_fill_manual(labels = c("< 50 %", "> 50 %"), values = c("gray95", "lightblue")) +
 #   labs(fill = "frequency")
 
@@ -453,8 +457,7 @@ extract.coefs.relaxed.miRNA <- extractCoefs(models.lasso.relaxed.miRNA) %>% do.c
 
 # calculate percentages
 feat.freq.relaxed.miRNA <- data.frame(sort(extract.coefs.relaxed.miRNA/100)) %>% 
-  
-                                                                                                                        setNames(c("coef", "freq"))
+  setNames(c("coef", "freq"))
 
 # plot important features
 ggplot(data = feat.freq.relaxed.miRNA, aes(coef, freq)) +
@@ -486,7 +489,7 @@ dat_compare <- rbind(complete = ci.complete,
          model = reorder(model, cvAUC))
 
 # train inner cv ROC
-ggplot(filter(dat_compare, results == "train.inner"), aes(x=model, y=cvAUC)) + 
+ggplot(filter(dat_compare, results == "cv.AUC.inner"), aes(x=model, y=cvAUC)) + 
   geom_errorbar(aes(ymin=lower, ymax=upper), width = 0.3, size = 1) +
   geom_point(size = 4, shape = 18, color = "red") +
   coord_flip() + 
@@ -510,22 +513,6 @@ ggplot(dat_compare, aes(x=model, y=cvAUC, color= results)) +
 # ci for model coefficients to assess stability of the best model? 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #####################################
 ##
 ## e. ROC curve
@@ -537,12 +524,36 @@ ggplot(dat_compare, aes(x=model, y=cvAUC, color= results)) +
 # calcuate AUC for different folds
 ls <- ls_cvAUC(models.lasso.relaxedLasso)
 out <- cvAUC(ls$predictions, ls$labels)
-
+res <- ci.cvAUC(ls$predictions, ls$labels)
 
 #Plot CV AUC
 plot(out$perf, col="grey82", lty=3, main="10-fold CV AUC (repeated 10 times)")
 plot(out$perf, col="blue", avg="vertical",add =T)
 abline(0,1, col = "red", lty = 2)
+text(0.8, 0.2, paste("AUC: ",round(res$cvAUC,3), " (",round(res$ci[1],3),"; ",round(res$ci[2],3),")", sep =""))
+
+
+#####################################
+##
+## f. final model
+##
+#####################################
+
+feat.final <- names(select(dat_log, c(feat.relaxed$coef, Alter, prior_BRAF_therapy)))
+model.formula <- as.formula(paste("Responder~",paste(feat.final, collapse ="+")))
+
+x <- model.matrix(model.formula, dat_log)
+y <- dat_log$Responder
+
+set.seed(849)
+final <- train(x, y, method = "glmnet",preProcess = c("center","scale"), 
+      trControl = cctrl1,metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+
+# ROC of final model
+final$results[final$results$lambda == final$finalModel$lambdaOpt,]
+
+# coefficients of final model 
+coef(final$finalModel, final$finalModel$lambdaOpt)
 
 
 
@@ -550,17 +561,16 @@ abline(0,1, col = "red", lty = 2)
 
 
 
+test2 <- bind_rows(lapply(1:10, function(x){
+    tmp <- bind_rows(sapply(models.lasso.relaxedLasso[[x]], '[', 'coefficients'))
+  }))
 
 
+test2 %>% group_by(coefs) %>% summarize(mean = mean(vals), ci = confInt(vals)) %>%
+  mutate(lower = mean - ci, upper = mean + ci) %>% select(-ci)
+ 
 
-
-
-
-
-
-
-
-
+unlist.model(models.lasso.complete, "lambda", "train.metrics") %>% table()
 
 
 

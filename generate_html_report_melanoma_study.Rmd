@@ -381,7 +381,9 @@ miR_qq_log <- dat_miR %>%
 ## log-transformed miRNA values were used for ML
 ```
 
-![**Fig. 5: Histogram of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_hist_log.png)
+![**Fig. 5: Histogram of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_histogram_log.png)
+
+
 
 ![**Fig. 6: qqplot of log-transformed miRNA expression** .](https://raw.githubusercontent.com/MBender1992/MelanomaStudy/Marc/Results/miRNA_qq_log.png)
 

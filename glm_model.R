@@ -161,8 +161,9 @@ miR_qq <- dat_miR %>%
 # draw histograms for all miRNAs log-transformed
 miR_hist_log <- dat_miR %>% 
   ggplot(aes(log(expression))) +
-  geom_histogram() +
-  facet_wrap(~miRNA, scales = "free")
+  geom_histogram(color = "black", fill = "grey") +
+  facet_wrap(~miRNA, scales = "free") + 
+  theme_bw()
 
 # png("miRNA_histogram_log.png", units="in", width=12, height=8, res=1200)
 # miR_hist_log
@@ -174,7 +175,8 @@ miR_qq_log <- dat_miR %>%
   ggplot(aes(sample = log(expression))) +
   geom_qq() +
   geom_qq_line() +
-  facet_wrap(~miRNA, scales = "free")
+  facet_wrap(~miRNA, scales = "free") +
+  theme_bw()
 
 # png("miRNA_qq_log.png", units="in", width=12, height=8, res=1200)
 # miR_qq_log
@@ -385,9 +387,6 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
 #   scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2), expand = c(0,0), labels = scales::percent_format()) +
 #   geom_hline(yintercept = 0.5, lty = 2, color = "red") + 
 #   labs(fill = "frequency")
-
-
-
 
 
 

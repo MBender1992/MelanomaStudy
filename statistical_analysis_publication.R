@@ -15,6 +15,7 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 dat <- load_melanoma_data() # n = 101 patients
 
 
+
 #####################################
 #                                   #
 #         1. patient table          #

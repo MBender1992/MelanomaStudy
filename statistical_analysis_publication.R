@@ -72,20 +72,19 @@ dat_serum_markers_tidy <- dat %>%
   filter(!is.na(Responder)) %>%
   select(c(ID, Responder,Baseline, Eosinophile, CRP, LDH, S100)) %>% 
   gather(serum_marker, value,-c(ID, Responder,Baseline)) %>%
-  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value)),
-         Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes"))) %>% 
+  mutate(log_val = ifelse(is.infinite(log2(value)), 0, log2(value))) %>% 
   filter(!is.na(log_val)) 
 
 dat_plot <- dat_serum_markers_tidy %>% mutate(
   serum_marker = str_replace_all(serum_marker, "CRP", "CRP (mg/L)"),
   serum_marker = str_replace_all(serum_marker, "LDH", "LDH (U/L)"),
-  serum_marker = str_replace_all(serum_marker, "S100", "S100 (µg/L)"),
+  serum_marker = str_replace_all(serum_marker, "S100", "S100 (Âµg/L)"),
   serum_marker = str_replace_all(serum_marker, "Eosinophile", "Eosinophile (%)")
 )
 
 # plot 4 markers in separate plots and calculate statistics
 plot_serum_markers <- signif_plot_Melanoma(dat_plot, x="Responder", y="log_val", p.adj = "fdr", 
-                     plot.type = "dotplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
+                     plot.type = "boxplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
                      method ="t.test", p.label="{p.signif}", facet="serum_marker")
 
 png("serum_markers.png", units="in", width=5, height=4, res=1200)
@@ -108,12 +107,11 @@ dat_miRNA_tidy <- dat %>%
   filter(miRExpAssess == 1 & !is.na(Responder)) %>%
   gather(miRNA, expression, contains("hsa")) %>%
   mutate(miRNA = str_replace_all(.$miRNA, "hsa-","")) %>%
-  mutate(log_exp = log2(expression),
-         Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes")))
+  mutate(log_exp = log2(expression))
 
 # Plot miRNA data
 plot_miRNA <- signif_plot_Melanoma(dat_miRNA_tidy, x="Responder", y="log_exp", signif=0.05, p.adj = "fdr", 
-                     plot.type = "dotplot", significance=F, Legend = F, var.equal = F,
+                     plot.type = "boxplot", significance=F, Legend = F, var.equal = F,
                      method ="t.test", p.label="p = {round(p,4)}",p.size = 3, facet="miRNA")
 
 png("miRNAs.png", units="in", width=5.5, height=4, res=1200)

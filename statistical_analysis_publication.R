@@ -79,15 +79,21 @@ dat_serum_markers_tidy <- dat %>%
          Responder =  factor(Responder, levels = c("nein", "ja") , labels = c("no", "yes"))) %>% 
   filter(!is.na(log_val)) 
 
+dat_plot <- dat_serum_markers_tidy %>% mutate(
+  serum_marker = str_replace_all(serum_marker, "CRP", "CRP (mg/L)"),
+  serum_marker = str_replace_all(serum_marker, "LDH", "LDH (U/L)"),
+  serum_marker = str_replace_all(serum_marker, "S100", "S100 (µg/L)"),
+  serum_marker = str_replace_all(serum_marker, "Eosinophile", "Eosinophile (%)")
+)
+
 # plot 4 markers in separate plots and calculate statistics
-plot_serum_markers <- signif_plot_Melanoma(dat_serum_markers_tidy, x="Responder", y="log_val", p.adj = "fdr", 
+plot_serum_markers <- signif_plot_Melanoma(dat_plot, x="Responder", y="log_val", p.adj = "fdr", 
                      plot.type = "dotplot", significance=FALSE, Legend = FALSE, ylab = "log2 serum marker concentration",
                      method ="t.test", p.label="{p.signif}", facet="serum_marker")
 
 png("serum_markers.png", units="in", width=5, height=4, res=1200)
 plot_serum_markers$graph
 dev.off()
-
 
 
 

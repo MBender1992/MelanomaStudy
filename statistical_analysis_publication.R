@@ -122,3 +122,77 @@ dev.off()
 #
 # res.signif <- str_replace_all(c(plot_miRNA$stat_test_results$miRNA,plot_serum_markers$stat_test_results$serum_marker),"-",".")
 # saveRDS(res.signif, "significant_features.rds")
+
+
+
+
+
+#####################################
+#                                   #
+#           4. BRAF                 #
+#                                   #
+#####################################
+dat_BRAF_tidy$BRAFnew %>% table()
+# transform data
+dat_BRAF_tidy <- dat %>% 
+  filter(miRExpAssess == 1 & !is.na(prior_BRAF_therapy) & !is.na(BRAF) & Stadium == "IV") %>%
+  mutate(BRAFnew = ifelse(BRAF == "neg", "wt", ifelse(prior_BRAF_therapy == 1, "mut_BRAF_Inhibitor", "mut_no_BRAF_Inhibitor"))) %>%
+  mutate(BRAFnew = factor(BRAFnew, levels = c("wt", "mut_no_BRAF_Inhibitor", "mut_BRAF_Inhibitor"))) %>%
+  mutate(BRAF = factor(BRAF, levels = c("neg","pos"), labels = c("wt", "mut"))) %>%
+  gather(miRNA, expression, contains("hsa")) %>%
+  mutate(logexp = log2(expression)) 
+
+# calculate miRNAs with significant differences 
+hccmAnova <- dat_BRAF_tidy %>% 
+  group_by(miRNA, Stadium) %>% 
+  anova_test(logexp ~BRAFnew, white.adjust = T) %>% 
+  filter(p < 0.05) %>% 
+  print(n="all")
+
+# calculate GH post-hoc test 
+GH_test <- dat_BRAF_tidy %>% 
+  group_by(miRNA, Stadium) %>% 
+  games_howell_test(logexp ~BRAFnew)%>% 
+  filter(p.adj < 0.05) 
+
+# calculate maximum value for each miRNA
+maxexp <- dat_BRAF_tidy %>% 
+  filter(miRNA %in% GH_test$miRNA) %>%
+  group_by(miRNA) %>% 
+  summarize(y.position = max(expression)*1.06)
+
+# calculate y.positions
+ypos <- left_join(data.frame(miRNA =stat_test$miRNA),  data.frame(maxexp)) %>%
+  mutate(y.position = ifelse(duplicated(y.position), y.position*1.11, y.position))
+
+# change y.positions to previously calculated y positions (as stat test was performed on logs so the y.positions are off)
+stat_test <- GH_test %>% 
+  add_xy_position(x = "BRAFnew") %>%
+  mutate(y.position = ypos$y.position)
+
+# plot
+plot_BRAF <- dat_BRAF_tidy %>% 
+  filter(miRNA %in% hccmAnova$miRNA)  %>%
+  ggplot(aes(BRAFnew, expression)) + 
+  stat_boxplot(geom='errorbar', linetype=1, width=0.4)+
+  geom_boxplot(outlier.shape = NA, aes(fill = BRAF))+
+  geom_jitter(size = 1.2, shape = 1, position = position_jitter(0.1)) + 
+  facet_wrap(~miRNA, scales = "free")+
+  theme_bw() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x = element_blank(),
+        legend.key.size = unit(1,"line"),
+        panel.grid.minor=element_blank(),
+        strip.background=element_blank()) +
+  scale_fill_manual(values=c("#3288bd","#d53e4f")) +
+  scale_y_continuous(expand = expansion(mult = c(.05, .15))) +
+  ylab("miRNA Expression (a.u.)") +
+  stat_pvalue_manual(stat_test) 
+
+png("Results/BRAF.png", units="in", width=7, height=5, res=1200)
+plot_BRAF
+dev.off()
+
+
+
+

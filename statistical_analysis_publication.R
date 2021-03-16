@@ -132,10 +132,14 @@ dev.off()
 #           4. BRAF                 #
 #                                   #
 #####################################
-dat_BRAF_tidy$BRAFnew %>% table()
+
+# 
+dat_BRAF <- dat %>% 
+  filter(miRExpAssess == 1 & !is.na(prior_BRAF_therapy) & !is.na(BRAF) & Stadium == "IV")
+
+
 # transform data
-dat_BRAF_tidy <- dat %>% 
-  filter(miRExpAssess == 1 & !is.na(prior_BRAF_therapy) & !is.na(BRAF) & Stadium == "IV") %>%
+dat_BRAF_tidy <- dat_BRAF %>%
   mutate(BRAFnew = ifelse(BRAF == "neg", "wt", ifelse(prior_BRAF_therapy == 1, "mut_BRAF_Inhibitor", "mut_no_BRAF_Inhibitor"))) %>%
   mutate(BRAFnew = factor(BRAFnew, levels = c("wt", "mut_no_BRAF_Inhibitor", "mut_BRAF_Inhibitor"))) %>%
   mutate(BRAF = factor(BRAF, levels = c("neg","pos"), labels = c("wt", "mut"))) %>%
@@ -194,5 +198,62 @@ plot_BRAF
 dev.off()
 
 
+# scale data for Heatmap
+dat_scaled <- dat_BRAF %>% 
+  column_to_rownames("ID") %>%
+  select(contains("hsa")) %>%
+  scale() %>%
+  t()
+  
+
+# set ID as rownames so colorbar works properly
+dat_colorbar <- dat_BRAF %>% 
+  select(c(ID, BRAF)) %>% 
+  column_to_rownames("ID") %>%
+  mutate(BRAF = (ifelse(BRAF == "neg", "wt", "mut")))
+         
+# define colors for colorbar
+colorbar <- HeatmapAnnotation(
+  df =dat_colorbar,
+  col = list(
+    BRAF = c(
+      "wt" = "#3288bd",
+      "mut"="#d53e4f")
+  ),
+  annotation_legend_param = list(
+    BRAF = list(nrow=1)
+  )
+)
+
+col_fun = colorRamp2(c(-1.8, 0,0.3, 1.8), c("#4575b4", "white","#ffffbf", "#d73027"))
 
 
+Ht <- Heatmap(
+  dat_scaled,
+  col= col_fun,
+  top_annotation = colorbar,
+  column_title = c("A", "B"),
+  border = T,
+  column_km = 2,
+  column_km_repeats = 100,
+  clustering_method_row = "average",
+  clustering_method_columns = "average",
+  clustering_distance_row = "pearson",
+  clustering_distance_column = "euclidean",
+  rect_gp = gpar(col = "white",lty = 1, lwd = 1),
+  row_names_gp = gpar(fontsize = 10),
+  show_column_names = FALSE,
+  column_names_gp = gpar(fontsize = 10),
+  heatmap_legend_param = list(
+    title = "row Z-score",
+    at = seq(-2,2,by=1),
+    color_bar="continuous",
+    title_position ="topcenter",
+    legend_direction = "horizontal",
+    legend_width = unit(4, "cm")
+  ))
+
+
+png("Results/Heatmap_BRAF.png", units="in", width=9, height=8, res=600)
+draw(Ht, annotation_legend_side = "bottom", heatmap_legend_side = "bottom")
+dev.off()

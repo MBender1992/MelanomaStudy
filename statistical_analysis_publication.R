@@ -7,6 +7,8 @@ library(rstatix)
 library(devtools)
 library(data.table)
 library(table1)
+library(ComplexHeatmap)
+library(circlize)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -146,37 +148,12 @@ dat_BRAF_tidy <- dat_BRAF %>%
   gather(miRNA, expression, contains("hsa")) %>%
   mutate(logexp = log2(expression)) 
 
-# calculate miRNAs with significant differences 
-hccmAnova <- dat_BRAF_tidy %>% 
-  group_by(miRNA, Stadium) %>% 
-  anova_test(logexp ~BRAFnew, white.adjust = T) %>% 
-  filter(p < 0.05) %>% 
-  print(n="all")
-
-# calculate GH post-hoc test 
-GH_test <- dat_BRAF_tidy %>% 
-  group_by(miRNA, Stadium) %>% 
-  games_howell_test(logexp ~BRAFnew)%>% 
-  filter(p.adj < 0.05) 
-
-# calculate maximum value for each miRNA
-maxexp <- dat_BRAF_tidy %>% 
-  filter(miRNA %in% GH_test$miRNA) %>%
-  group_by(miRNA) %>% 
-  summarize(y.position = max(expression)*1.06)
-
-# calculate y.positions
-ypos <- left_join(data.frame(miRNA =stat_test$miRNA),  data.frame(maxexp)) %>%
-  mutate(y.position = ifelse(duplicated(y.position), y.position*1.11, y.position))
-
-# change y.positions to previously calculated y positions (as stat test was performed on logs so the y.positions are off)
-stat_test <- GH_test %>% 
-  add_xy_position(x = "BRAFnew") %>%
-  mutate(y.position = ypos$y.position)
+# calculate statistics and add ypositions
+stat_test <- stat_test_BRAF(dat_BRAF_tidy, var = "BRAFnew", p.adj.anova = "holm")
 
 # plot
 plot_BRAF <- dat_BRAF_tidy %>% 
-  filter(miRNA %in% hccmAnova$miRNA)  %>%
+  filter(miRNA %in% unique(stat_test$miRNA))  %>%
   ggplot(aes(BRAFnew, expression)) + 
   stat_boxplot(geom='errorbar', linetype=1, width=0.4)+
   geom_boxplot(outlier.shape = NA, aes(fill = BRAF))+
@@ -193,7 +170,7 @@ plot_BRAF <- dat_BRAF_tidy %>%
   ylab("miRNA Expression (a.u.)") +
   stat_pvalue_manual(stat_test) 
 
-png("Results/BRAF.png", units="in", width=7, height=5, res=1200)
+png("Results/BRAF/BRAF.png", units="in", width=4, height=2, res=1200)
 plot_BRAF
 dev.off()
 
@@ -208,20 +185,25 @@ dat_scaled <- dat_BRAF %>%
 
 # set ID as rownames so colorbar works properly
 dat_colorbar <- dat_BRAF %>% 
-  select(c(ID, BRAF)) %>% 
+  select(c(ID, BRAF, prior_BRAF_therapy, brainMet)) %>% 
   column_to_rownames("ID") %>%
-  mutate(BRAF = (ifelse(BRAF == "neg", "wt", "mut")))
+  mutate(BRAF = (ifelse(BRAF == "neg", "wt", "mut")),
+         prior_BRAF_therapy = (ifelse(prior_BRAF_therapy == 1, "yes", "no")),
+         brainMet = str_replace_all(brainMet, "ja", "yes"),
+         brainMet = str_replace_all(brainMet, "nein", "no"))
          
 # define colors for colorbar
 colorbar <- HeatmapAnnotation(
   df =dat_colorbar,
   col = list(
-    BRAF = c(
-      "wt" = "#3288bd",
-      "mut"="#d53e4f")
+    BRAF = c("wt" = "#3288bd","mut"="#d53e4f"),
+    prior_BRAF_therapy = c("yes" = "#542788","no" = "#b35806"),
+    brainMet = c("yes" = "#d73027","no" = "#1a9850")
   ),
   annotation_legend_param = list(
-    BRAF = list(nrow=1)
+    BRAF = list(nrow=1),
+    prior_BRAF_therapy  = list(nrow=1),
+    brainMet = list(nrow=1)
   )
 )
 
@@ -257,3 +239,11 @@ Ht <- Heatmap(
 png("Results/Heatmap_BRAF.png", units="in", width=9, height=8, res=600)
 draw(Ht, annotation_legend_side = "bottom", heatmap_legend_side = "bottom")
 dev.off()
+
+
+
+
+
+
+
+

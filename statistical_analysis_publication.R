@@ -9,6 +9,7 @@ library(data.table)
 library(table1)
 library(ComplexHeatmap)
 library(circlize)
+library(RBiomirGS)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -216,6 +217,7 @@ Ht <- Heatmap(
   top_annotation = colorbar,
   column_title = c("A", "B"),
   border = T,
+  row_split = 3,
   column_km = 2,
   column_km_repeats = 100,
   clustering_method_row = "average",
@@ -242,8 +244,64 @@ dev.off()
 
 
 
+# extract clusters out of Heatmap object
+Ht_clusters <- extract_clusters(dat_scaled, Ht, sampleName = "ID", sampleClust = "sampleCluster", geneName = "miRNA", geneClust = "miRCluster")
+
+# transform miRNA data
+dat_tmp <- dat_BRAF %>% mutate(ID = as.character(ID)) %>% 
+  gather(miRNA, expression, contains("hsa")) %>%
+  select(ID, miRNA, expression) %>%
+  mutate(log_exp = log2(expression))
+
+# combine miRNA data with cluster information
+dat_clusters <- left_join(dat_tmp, Ht_clusters$sampleCluster) %>%
+  left_join(Ht_clusters$miRCluster)
+
+# create list for each miRCluster
+ls_miRCluster <- split(dat_clusters, f = dat_clusters$miRCluster)         
+
+# extract cluster 1 B (upregulated miRNAs in BRAF wildtype)
+cl1B <- as.data.frame(lapply(summary_clusters(ls_miRCluster, 1, "B"), FUN=drop_attr))
+
+
+# collect mRNA targets of the miRNAs upregulated in cluster 1B
+rbiomirgs_mrnascan(objTitle = "cl_1B_predicted", mir = cl1B$miRNA, sp = "hsa", 
+                   queryType = "predicted",parallelComputing = TRUE,clusterType = "PSOCK")
+
+
+# calculate GS by logistic regression
+rbiomirgs_logistic(objTitle = "cl_1B_predicted_mirna_mrna_iwls_KEGG",mirna_DE = cl1B, 
+                   var_mirnaName = "miRNA",var_mirnaFC = "FC",var_mirnaP = "pvalue", mrnalist = cl_1B_predicted_mrna_entrez_list, 
+                   mrna_Weight = NULL, gs_file = "Data/Pathway Analysis/c2.cp.kegg.v7.2.entrez.gmt", optim_method = "IWLS", 
+                   p.adj = "fdr", parallelComputing = FALSE, clusterType = "PSOCK")
 
 
 
+# total number of significantly enriched pathways
+sum(cl_1B_predicted_mirna_mrna_iwls_KEGG_GS$adj.p.val < 0.05)
+
+# remove randomly enriched pathways
+ctrl_list_KEGG <- readRDS(file = "Data/Pathway Analysis/ctrl_list_KEGG.rds")
+n <- 50
+res_ctrl_KEGG <- pathway_ctrl_summary(ctrl_list_KEGG, n=n)
+bias_KEGG <- names(res_ctrl_KEGG$bias[res_ctrl_KEGG$bias > 0.1])
+cl_1B_KEGG_plot <- cl_1B_predicted_mirna_mrna_iwls_KEGG_GS %>% filter(!GS %in% bias_KEGG)
 
 
+#plot results (volcano plot)
+png("Results/BRAF/Pathway/volcano_cl_1B_KEGG.png", units="in", width=5, height=4, res=600)
+rbiomirgs_volcano(gsadfm = cl_1B_KEGG_plot,topgsLabel = TRUE,n = 15,gsLabelSize = 2,
+                  sigColour = "red",plotWidth = 250,plotHeight = 220,xLabel = "model coefficient")
+dev.off()
+
+# plot distribution of enriched gene sets
+png("Results/BRAF/Pathway/volcano_bar_dist_cl_1B_KEGG.png", units="in", width=6, height=3, res=600)
+rbiomirgs_bar(gsadfm = cl_1B_KEGG_plot,signif_only = F,gs.name = F,
+              n = "all",xLabel = "gene set", yLabel = "model coefficient", plotWidth = 250, plotHeight = 220)
+dev.off()
+
+# plot top enriched gene sets
+png("Results/BRAF/Pathway/volcano_bar_top15cl_1B_KEGG.png", units="in", width=5, height=4, res=600)
+rbiomirgs_bar(gsadfm = cl_1B_KEGG_plot,signif_only = 15,gs.name = T,xLabel = "model coefficient",
+              yTxtSize = 7, n = 15, plotWidth = 250, plotHeight = 220)
+dev.off()

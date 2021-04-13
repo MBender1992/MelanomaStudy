@@ -10,6 +10,7 @@ library(table1)
 library(ComplexHeatmap)
 library(circlize)
 library(RBiomirGS)
+library(formattable)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -262,6 +263,13 @@ ls_miRCluster <- split(dat_clusters, f = dat_clusters$miRCluster)
 
 # extract cluster 1 B (upregulated miRNAs in BRAF wildtype)
 cl1B <- as.data.frame(lapply(summary_clusters(ls_miRCluster, 1, "B"), FUN=drop_attr))
+
+# create a table with the input for biomirGS
+cl1B_tbl <- cl1B %>% 
+  mutate(pvalue = ifelse(pvalue < 0.0001, "<0.0001", round(pvalue,4))) %>%
+  arrange(pvalue) %>%
+  setNames(c("miRNA", "fold change", "p")) 
+formattable(cl1B_tbl)
 
 
 # collect mRNA targets of the miRNAs upregulated in cluster 1B

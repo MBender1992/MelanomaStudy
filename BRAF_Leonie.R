@@ -283,7 +283,7 @@ dev.off()
 
 #####################################
 #                                   #
-#  4. Compare BM_mut and NBM mut    #
+#  5. Compare BM_mut and NBM mut    #
 #                                   #
 #####################################
 
@@ -374,7 +374,7 @@ dev.off()
 
 #####################################
 #                                   #
-#  5. Compare BM_wt and NBM_wt      #
+#  6. Compare BM_wt and NBM_wt      #
 #                                   #
 #####################################
 
@@ -387,7 +387,7 @@ BM_wt_vs_NBM_wt_tidy <- BM_wt_vs_NBM_wt %>%
 # calculate statistics and add ypositions
 stat_test <- stat_test_BRAF(BM_wt_vs_NBM_wt_tidy, var = "subgroup", p.adj.anova = "holm")
 
-p5 <- BM_wt_vs_NBM_wt_tidy  %>%
+p5 <- BM_wt_vs_NBM_wt_tidy %>%
   filter(miRNA %in% unique(stat_test$miRNA)) %>%
   ggplot(aes(subgroup, expression))  +
   stat_boxplot(geom='errorbar', linetype=1, width=0.4)+
@@ -411,7 +411,7 @@ dev.off()
 
 # #####################################
 # #                                   #
-# #  6. BM vs NBM                     #
+# #  7. BM vs NBM                     #
 # #                                   #
 # #####################################
 # 

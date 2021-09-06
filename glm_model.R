@@ -9,6 +9,7 @@ library(pROC)
 library(DescTools)
 library(pbapply)
 library(cvAUC)
+library(doParallel)
 
 # source R functions
 source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_functions.R")  
@@ -538,20 +539,19 @@ text(0.8, 0.2, paste("AUC: ",round(res$cvAUC,3), " (",round(res$ci[1],3),"; ",ro
 feat.final <- names(select(dat_log, c(feat.relaxed$coef, Alter, prior_BRAF_therapy)))
 model.formula <- as.formula(paste("Responder~",paste(feat.final, collapse ="+")))
 
-x <- model.matrix(model.formula, dat_log)
+x <- model.matrix(model.formula, dat_log)[,-1]
 y <- dat_log$Responder
 
 set.seed(27)
+# 
 final <- train(x, y, method = "glmnet",preProcess = c("center","scale"), 
-      trControl = cctrl1,metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+      trControl = cctrl1, metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = 0.01))
 
 # ROC of final model
 final$results[final$results$lambda == final$finalModel$lambdaOpt,]
 
 # coefficients of final model 
 coef(final$finalModel, final$finalModel$lambdaOpt)
-
-
 
 
 
@@ -571,8 +571,9 @@ unlist.model(models.lasso.complete, "lambda", "train.metrics") %>% table()
 
 
 # simple logistic regression (Not recommended when features have been chosen by LASSO or elastic net regularization)
-logistic <- glm(Responder ~ LDH + BRAF + Eosinophile +`hsa-mir-514a-3p`,data=dat3, family="binomial")
+logistic <- glm(Responder ~ LDH + prior_BRAF_therapy + Eosinophile +hsa.mir.514a.3p,data=dat_log, family="binomial")
 summary(logistic)
+
 
 
 ll.null <- logistic$null.deviance/-2
@@ -587,7 +588,5 @@ ll.proposed <- logistic$deviance/-2
 
 nullmodel <- glm(Responder ~ 1, data = dat3, family = "binomial")
 anova(nullmodel,logistic, test = 'LRT')
-
-
 
 

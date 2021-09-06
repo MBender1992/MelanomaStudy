@@ -739,7 +739,7 @@ text(0.6, 0.2, paste("cvAUC: ",round(res$cvAUC,3), " (",round(res$ci[1],3),"; ",
 **Fig. 15: ROC curve of the performance on the test set (outer cvAUC) for the relaxed combined model (see 3.2.4b).** Grey dotted lines indicate ROC for each iteration (only a few ROC curves as there are a lot of overlaps). Blue line indicates the average ROC curve of all iterations. Red dashed line indicates a random classifier. AUC: area under the curve. 95 % confident intervals of the cvAUC are shown in parentheses). 
 
 
-Inner cvAUC and outer cvAUC show a high overlap, indicating a well trained model which is able to be generally applied to detect immunotherapy outcome in melanoma patients. Eventually, the model has been retrained on the whole dataset for deployment. The ROC of the final model was 0.855 which is very close to the ROC obtained by cross validation in the outer loop. The coefficients of the final model were: 
+Inner cvAUC and outer cvAUC show a high overlap, indicating a well trained model which is able to be generally applied to detect immunotherapy outcome in melanoma patients. Eventually, the model has been retrained on the whole dataset with the chosen hyperparameters alpha = 1 and lambda = 0.01 for deployment. The ROC of the final model was 0.855 which is very close to the ROC obtained by cross validation in the outer loop. The coefficients of the final model were: 
 
 
 ```{r, warning = FALSE}
@@ -751,7 +751,7 @@ y <- dat_log$Responder
 
 set.seed(27)
 final <- train(x, y, method = "glmnet",preProcess = c("center","scale"), 
-      trControl = cctrl1,metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01,0.2,by = 0.01)))
+      trControl = cctrl1,metric = "ROC", tuneGrid = expand.grid(alpha = 1, lambda = 0.01))
 
 # ROC of final model
 final$results[final$results$lambda == final$finalModel$lambdaOpt,]

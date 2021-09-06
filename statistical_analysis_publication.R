@@ -18,8 +18,6 @@ source_url("https://raw.githubusercontent.com/MBender1992/base_scripts/Marc/R_fu
 # load data with custom function for melanoma data only for Responders
 dat <- load_melanoma_data() # n = 101 patients
 
-
-
 #####################################
 #                                   #
 #         1. patient table          #
@@ -243,8 +241,6 @@ png("Results/Heatmap_BRAF.png", units="in", width=9, height=8, res=600)
 draw(Ht, annotation_legend_side = "bottom", heatmap_legend_side = "bottom")
 dev.off()
 
-
-
 # extract clusters out of Heatmap object
 Ht_clusters <- extract_clusters(dat_scaled, Ht, sampleName = "ID", sampleClust = "sampleCluster", geneName = "miRNA", geneClust = "miRCluster")
 
@@ -313,3 +309,52 @@ png("Results/BRAF/Pathway/volcano_bar_top15cl_1B_KEGG.png", units="in", width=5,
 rbiomirgs_bar(gsadfm = cl_1B_KEGG_plot,signif_only = 15,gs.name = T,xLabel = "model coefficient",
               yTxtSize = 7, n = 15, plotWidth = 250, plotHeight = 220)
 dev.off()
+
+
+
+
+
+
+
+test <- function(){
+  library(readxl)
+  
+  # load csv files
+  dat_miR   <- read_csv("Data/miRNA_Expression_Fireplex_Melanoma_Study.csv")
+  dat_meta  <- read_xlsx("Data/Metadata_Melanoma_Study.xlsx") %>%
+    # select(-c(therapy_start, Abnahmedatum)) %>%
+    mutate(TRIM_PDL1_Expression = str_replace_all(TRIM_PDL1_Expression,"\\++","+")) %>% 
+    mutate(TRIM_PDL1_Expression = ifelse(TRIM_PDL1_Expression == "o", NA,TRIM_PDL1_Expression)) %>%
+    mutate(Stadium = toupper(Stadium)) %>%
+    mutate(Stadium = str_extract(Stadium, "^[IV]{1,3}")) %>%
+    mutate(BRAF = str_replace_all(BRAF, "\\.", "")) %>% 
+    mutate(breslow_thickness_mm = parse_number(breslow_thickness_mm))
+  
+  # change ID column to uniform capital letters for later filtering
+  names(dat_miR) <- c("miRNA", toupper(names(dat_miR)[-1]))
+  
+  # define IDs to be dropped for further analyses
+  controls <- c("K104_1", "K104_2", "K104_3A", "K104_3B")
+  duplicates <- c("22B","38B","39B","47B")
+  
+  # wide miR data (78 patients with miRNA data)
+  dat_miR_trans <- transpose_dataframe(colnames = c("ID",dat_miR$miRNA), data = dat_miR) %>%
+    filter(!ID %in% controls & !ID %in% duplicates) %>%   #drop duplicate patient data 
+    mutate(ID = parse_number(ID)) #convert ID to numeric
+  
+  # join both tables
+  right_join(dat_miR_trans,dat_meta, by="ID") %>% 
+    filter(!ID %in% c(1,2)) %>% # no data available for patient 1 and 2 but still part of the source table
+    mutate(miRExpAssess = ifelse(is.na(rowSums(.[,which(str_detect(names(.),"mir"))])), 0,1))  %>%# if no miRNA expression has been measure fill in 0
+    arrange(ID) %>% 
+    mutate(Responder = factor(Responder, levels = c("nein", "ja"), labels = c("no", "yes"))) %>%
+    mutate(prior_BRAF_therapy = ifelse(str_detect(Vorbehandlung,"Mek|Dabra|Tafinlar|Tefinlar|MEK|BRAF|Vemu|[zZ]ellboraf"), 1, 0))
+}
+
+dat2 <- test()
+
+dat2 %>% 
+   filter(miRExpAssess == 1 & !is.na(Responder)) %>% select(therapy_at_blood_draw,therapy_start, Abnahmedatum, Vorbehandlung) %>% 
+   filter(str_detect(therapy_at_blood_draw, "[pP]embro|[iI]pi|[nN]ivo", negate = T)) %>% print(n="all")
+
+

@@ -238,7 +238,8 @@ rep <- 10
 reps <- paste0("Rep", 1:rep)
 folds <- paste0("Fold", 1:k)
 
-models.lasso.complete <- lassoEval("complete", dat_log, rep = rep, k = k)
+model.matrix.complete <- model.matrix.subset("complete", data = dat_log)
+models.lasso.complete <- mlEval(model.matrix.complete, dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.complete, "models/models_lasso_complete.rds")
 # models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
 
@@ -282,7 +283,8 @@ feat.relaxed <- feat.relaxed[as.character(feat.relaxed$coef) %like any% names(da
 
 
 # modelling and evaluation
-models.lasso.relaxedLasso <- lassoEval("relaxedLasso", dat_log, rep = rep, k = k)
+model.matrix.relaxedLasso <- model.matrix.subset("relaxedLasso", data = dat_log)
+models.lasso.relaxedLasso <- mlEval(model.matrix.relaxedLasso, dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.relaxedLasso, "models/models_lasso_relaxedLasso.rds")
 # models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
 
@@ -320,7 +322,8 @@ feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>%
 #####################################
 
 # model process and evaluation, k and rep define fold and repeats in outer loop 
-models.lasso.baseline <- lassoEval("baseline", dat_log, rep = rep, k = k)
+model.matrix.baseline <- model.matrix.subset("baseline", data = dat_log)
+models.lasso.baseline <- mlEval(model.matrix.baseline, dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.baseline, "models/models_lasso_baseline.rds")
 # models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
 
@@ -353,6 +356,7 @@ feat.freq <- data.frame(sort(extract.coefs.baseline/100)) %>%
 
 
 
+
 #####################################
 ##
 ## c.3 signif
@@ -360,7 +364,8 @@ feat.freq <- data.frame(sort(extract.coefs.baseline/100)) %>%
 #####################################
 
 # 
-models.lasso.signif <- lassoEval("signif", dat_log, rep = rep, k = k)
+model.matrix.signif <- model.matrix.subset("signif", data = dat_log)
+models.lasso.signif <- mlEval(modelM, dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.signif, "models/models_lasso_signif.rds")
 # models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
 
@@ -400,7 +405,8 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
 #####################################
 
 #
-models.lasso.miRNA <- lassoEval("miRNA", dat_log, rep = rep, k = k)
+model.matrix.miRNA <- model.matrix.subset("miRNA", data = dat_log)
+models.lasso.miRNA <- mlEval(model.matrix.miRNA, dat_log, rep = rep, k = k)
 # saveRDS(models.lasso.miRNA, "models/models_lasso_miRNA.rds")
 # models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
 
@@ -439,7 +445,8 @@ feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>%
 
 feat.relaxed.miRNA <-  feat.freq.miRNA[feat.freq.miRNA$freq > 0.5,]
 
-models.lasso.relaxed.miRNA <- lassoEval("relaxedLassomiRNA", dat_log, rep = 10, k = 10)
+model.matrix.relaxed.miRNA <- model.matrix.subset("relaxedLassomiRNA", data = dat_log)
+models.lasso.relaxed.miRNA <- mlEval(model.matrix.relaxed.miRNA, dat_log, rep = 10, k = 10)
 #saveRDS(models.lasso.relaxed.miRNA, "models/models_lasso_relaxed_miRNA.rds")
 # models.lasso.relaxed.miRNA <- readRDS("models/models_lasso_relaxed_miRNA.rds")
 

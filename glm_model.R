@@ -9,6 +9,7 @@ library(pROC)
 library(DescTools)
 library(pbapply)
 library(cvAUC)
+library(mlekb)
 library(doParallel)
 
 # source R functions
@@ -212,7 +213,7 @@ hist(log(train.data$CRP), main = "log-transformed CRP")
 tmp <- dat_fct %>% select(where(is.numeric))
 fctrs <- dat_fct %>% select(!where(is.numeric))
 dat_log <- data.frame(cbind(log(tmp+1), fctrs)) 
-
+dat_log$Alter <- exp(dat_log$Alter)
 
 
 #####################################
@@ -239,7 +240,7 @@ reps <- paste0("Rep", 1:rep)
 folds <- paste0("Fold", 1:k)
 
 model.matrix.complete <- model.matrix.subset("complete", data = dat_log)
-models.lasso.complete <- mlEval(model.matrix.complete, dat_log, rep = rep, k = k)
+models.lasso.complete <- ml_eval(model.matrix.complete, y, rep.outer = rep, k.outer = k)
 # saveRDS(models.lasso.complete, "models/models_lasso_complete.rds")
 # models.lasso.complete <- readRDS("models/models_lasso_complete.rds")
 
@@ -248,10 +249,10 @@ models.lasso.complete <- mlEval(model.matrix.complete, dat_log, rep = rep, k = k
 models.lasso.complete <- setNames(lapply(models.lasso.complete, setNames, folds), reps)
 
 ## confidence interval for the cv.train folds in the inner loop 
-ci.complete <- rbind.model.ci(models.lasso.complete)
+ci.complete <- rbind_model_ci(models.lasso.complete)
 
 # extract important coefficients
-extract.coefs.complete <- extractCoefs(models.lasso.complete) %>% do.call(rbind,.) %>% table() 
+extract.coefs.complete <- extract_coefs(models.lasso.complete) %>% do.call(rbind,.) %>% table() 
 
 # calculate percentages
 feat.freq.complete <- data.frame(sort(extract.coefs.complete/100)) %>% 
@@ -284,7 +285,7 @@ feat.relaxed <- feat.relaxed[as.character(feat.relaxed$coef) %like any% names(da
 
 # modelling and evaluation
 model.matrix.relaxedLasso <- model.matrix.subset("relaxedLasso", data = dat_log)
-models.lasso.relaxedLasso <- mlEval(model.matrix.relaxedLasso, dat_log, rep = rep, k = k)
+models.lasso.relaxedLasso <- ml_eval(model.matrix.relaxedLasso, y, rep.outer = rep, k.outer = k)
 # saveRDS(models.lasso.relaxedLasso, "models/models_lasso_relaxedLasso.rds")
 # models.lasso.relaxedLasso <- readRDS("models/models_lasso_relaxedLasso.rds")
 
@@ -292,10 +293,10 @@ models.lasso.relaxedLasso <- mlEval(model.matrix.relaxedLasso, dat_log, rep = re
 models.lasso.relaxedLasso <- setNames(lapply(models.lasso.relaxedLasso, setNames, folds), reps)
 
 ## confidence interval for the cv.train folds in the inner loop 
-ci.relaxedLasso <- rbind.model.ci(models.lasso.relaxedLasso)
+ci.relaxedLasso <- rbind_model_ci(models.lasso.relaxedLasso)
 
 # extract important coefficients
-extract.coefs.relaxedLasso <- extractCoefs(models.lasso.relaxedLasso) %>% do.call(rbind,.) %>% table() 
+extract.coefs.relaxedLasso <- extract_coefs(models.lasso.relaxedLasso) %>% do.call(rbind,.) %>% table() 
 
 # calculate percentages
 feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>% 
@@ -323,7 +324,7 @@ feat.freq <- data.frame(sort(extract.coefs.relaxedLasso/100)) %>%
 
 # model process and evaluation, k and rep define fold and repeats in outer loop 
 model.matrix.baseline <- model.matrix.subset("baseline", data = dat_log)
-models.lasso.baseline <- mlEval(model.matrix.baseline, dat_log, rep = rep, k = k)
+models.lasso.baseline <- ml_eval(model.matrix.baseline, y, rep.outer = rep, k.outer = k)
 # saveRDS(models.lasso.baseline, "models/models_lasso_baseline.rds")
 # models.lasso.baseline <- readRDS("models/models_lasso_baseline.rds")
 
@@ -331,10 +332,10 @@ models.lasso.baseline <- mlEval(model.matrix.baseline, dat_log, rep = rep, k = k
 models.lasso.baseline <- setNames(lapply(models.lasso.baseline, setNames, folds), reps)
 
 ## confidence interval for the cv.train folds in the inner loop 
-ci.baseline <- rbind.model.ci(models.lasso.baseline)
+ci.baseline <- rbind_model_ci(models.lasso.baseline)
 
 # extract important coefficients
-extract.coefs.baseline <- extractCoefs(models.lasso.baseline) %>% do.call(rbind,.) %>% table() 
+extract.coefs.baseline <- extract_coefs(models.lasso.baseline) %>% do.call(rbind,.) %>% table() 
 
 # calculate percentages
 feat.freq <- data.frame(sort(extract.coefs.baseline/100)) %>% 
@@ -365,7 +366,7 @@ feat.freq <- data.frame(sort(extract.coefs.baseline/100)) %>%
 
 # 
 model.matrix.signif <- model.matrix.subset("signif", data = dat_log)
-models.lasso.signif <- mlEval(modelM, dat_log, rep = rep, k = k)
+models.lasso.signif <- ml_eval(model.matrix.signif, y, rep.outer = rep, k.outer = k)
 # saveRDS(models.lasso.signif, "models/models_lasso_signif.rds")
 # models.lasso.signif <- readRDS("models/models_lasso_signif.rds")
 
@@ -373,10 +374,10 @@ models.lasso.signif <- mlEval(modelM, dat_log, rep = rep, k = k)
 models.lasso.signif <- setNames(lapply(models.lasso.signif, setNames, folds), reps)
 
 ## confidence interval for the cv.train folds in the inner loop 
-ci.signif <- rbind.model.ci(models.lasso.signif)
+ci.signif <- rbind_model_ci(models.lasso.signif)
 
 # extract important coefficients
-extract.coefs.signif <- extractCoefs(models.lasso.signif) %>% do.call(rbind,.) %>% table() 
+extract.coefs.signif <- extract_coefs(models.lasso.signif) %>% do.call(rbind,.) %>% table() 
 
 
 # calculate percentages
@@ -406,7 +407,7 @@ feat.freq <- data.frame(sort(extract.coefs.signif/100)) %>%
 
 #
 model.matrix.miRNA <- model.matrix.subset("miRNA", data = dat_log)
-models.lasso.miRNA <- mlEval(model.matrix.miRNA, dat_log, rep = rep, k = k)
+models.lasso.miRNA <- ml_eval(model.matrix.miRNA, y, rep.outer = rep, k.outer = k)
 # saveRDS(models.lasso.miRNA, "models/models_lasso_miRNA.rds")
 # models.lasso.miRNA <- readRDS("models/models_lasso_miRNA.rds")
 
@@ -414,10 +415,10 @@ models.lasso.miRNA <- mlEval(model.matrix.miRNA, dat_log, rep = rep, k = k)
 models.lasso.miRNA <- setNames(lapply(models.lasso.miRNA, setNames, folds), reps)
 
 ## confidence interval for the cv.train folds in the inner loop 
-ci.miRNA <- rbind.model.ci(models.lasso.miRNA)
+ci.miRNA <- rbind_model_ci(models.lasso.miRNA)
 
 # extract important coefficients
-extract.coefs.miRNA <- extractCoefs(models.lasso.miRNA) %>% do.call(rbind,.) %>% table() 
+extract.coefs.miRNA <- extract_coefs(models.lasso.miRNA) %>% do.call(rbind,.) %>% table() 
 
 # calculate percentages
 feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>% 
@@ -446,7 +447,7 @@ feat.freq.miRNA <- data.frame(sort(extract.coefs.miRNA/100)) %>%
 feat.relaxed.miRNA <-  feat.freq.miRNA[feat.freq.miRNA$freq > 0.5,]
 
 model.matrix.relaxed.miRNA <- model.matrix.subset("relaxedLassomiRNA", data = dat_log)
-models.lasso.relaxed.miRNA <- mlEval(model.matrix.relaxed.miRNA, dat_log, rep = 10, k = 10)
+models.lasso.relaxed.miRNA <- ml_eval(model.matrix.relaxed.miRNA, rep = 10, k = 10)
 #saveRDS(models.lasso.relaxed.miRNA, "models/models_lasso_relaxed_miRNA.rds")
 # models.lasso.relaxed.miRNA <- readRDS("models/models_lasso_relaxed_miRNA.rds")
 
@@ -454,10 +455,10 @@ models.lasso.relaxed.miRNA <- mlEval(model.matrix.relaxed.miRNA, dat_log, rep = 
 models.lasso.relaxed.miRNA <- setNames(lapply(models.lasso.relaxed.miRNA, setNames, folds), reps)
 
 ## confidence interval for the cv.train folds in the inner loop 
-ci.relaxed.miRNA <- rbind.model.ci(models.lasso.relaxed.miRNA)
+ci.relaxed.miRNA <- rbind_model_ci(models.lasso.relaxed.miRNA)
 
 # extract important coefficients
-extract.coefs.relaxed.miRNA <- extractCoefs(models.lasso.relaxed.miRNA) %>% do.call(rbind,.) %>% table() 
+extract.coefs.relaxed.miRNA <- extract_coefs(models.lasso.relaxed.miRNA) %>% do.call(rbind,.) %>% table() 
 
 # calculate percentages
 feat.freq.relaxed.miRNA <- data.frame(sort(extract.coefs.relaxed.miRNA/100)) %>% 
@@ -562,8 +563,6 @@ coef(final$finalModel, final$finalModel$lambdaOpt)
 
 
 
-
-
 test2 <- bind_rows(lapply(1:10, function(x){
     tmp <- bind_rows(sapply(models.lasso.relaxedLasso[[x]], '[', 'coefficients'))
   }))
@@ -573,8 +572,7 @@ test2 %>% group_by(coefs) %>% summarize(mean = mean(vals), ci = confInt(vals)) %
   mutate(lower = mean - ci, upper = mean + ci) %>% select(-ci)
  
 
-unlist.model(models.lasso.complete, "lambda", "train.metrics") %>% table()
-
+unlist_model(models.lasso.signif, "lambda", "train.metrics") %>% table()
 
 
 # simple logistic regression (Not recommended when features have been chosen by LASSO or elastic net regularization)
